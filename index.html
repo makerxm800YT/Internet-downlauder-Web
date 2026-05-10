@@ -1,99 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YouTube Downloader</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* [Your existing full CSS - I kept it the same for now] */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:      #0b0b0b;
-  --bg2:     #111111;
-  --card:    #161616;
-  --card2:   #1d1d1d;
-  --s3:      #242424;
-  --s4:      #2c2c2c;
-  --bdr:     #2e2e2e;
-  --red:     #e63232;
-  --redh:    #ff4f4f;
-  --grn:     #22c55e;
-  --fg:      #f2f2f2;
-  --fg2:     #888;
-  --fg3:     #444;
-  --radius:  14px;
-}
-html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--fg);overflow:hidden}
-body::before{content:"";position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0;}
-/* ... (I kept your full CSS to save space - just copy your old CSS here if you want) */
+    :root {
+        --red: #e63232;
+        --bg: #0b0b0b;
+        --card: #161616;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        font-family: 'DM Sans', sans-serif;
+        background: var(--bg);
+        color: #f2f2f2;
+        height: 100vh;
+        overflow: hidden;
+    }
+    .container { max-width: 820px; margin: 40px auto; padding: 20px; }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .logo {
+        font-family: 'Syne', sans-serif;
+        font-size: 28px;
+        color: var(--red);
+    }
+
+    .card {
+        background: var(--card);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 20px;
+        border: 1px solid #333;
+    }
+
+    input, select, button {
+        width: 100%;
+        padding: 14px;
+        margin: 8px 0;
+        border-radius: 12px;
+        border: none;
+        font-size: 15px;
+    }
+    input, select {
+        background: #222;
+        color: white;
+    }
+    button {
+        background: var(--red);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    button:hover { background: #ff4f4f; }
+
+    .log {
+        background: #111;
+        padding: 15px;
+        border-radius: 12px;
+        height: 220px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+    }
+
+    .status { margin: 10px 0; font-weight: 500; }
 </style>
 </head>
 <body>
 
-<!-- Your HTML body remains mostly same, only script is updated -->
+<div class="container">
 
-<div id="app">
-  <!-- [Keep your entire HTML body as it is] -->
+    <div class="header">
+        <div class="logo">YouTube Downloader</div>
+        <p>Free • Fast • Unlimited</p>
+    </div>
+
+    <!-- Login Area (Simple) -->
+    <div id="login-area" class="card">
+        <h2>Sign In</h2>
+        <input type="email" id="email" placeholder="Email address" value="user@example.com">
+        <input type="password" id="password" placeholder="Password" value="123456">
+        <button onclick="login()">Sign In</button>
+        <button onclick="googleLogin()" style="background:#4285f4;">Continue with Google</button>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" style="display:none;">
+
+        <div class="card">
+            <h3>Paste YouTube Link</h3>
+            <input type="text" id="url" placeholder="https://youtube.com/watch?v=... or Shorts link">
+            
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <select id="mode">
+                    <option value="Video">Video</option>
+                    <option value="Audio">Audio Only (MP3)</option>
+                </select>
+                <select id="quality">
+                    <option value="best">Best Quality</option>
+                    <option value="1080">1080p</option>
+                    <option value="720">720p</option>
+                </select>
+            </div>
+
+            <button onclick="startDownload()">⬇ DOWNLOAD NOW</button>
+        </div>
+
+        <div class="card">
+            <div class="status" id="status">Ready</div>
+            <div class="log" id="log">Waiting for download...</div>
+        </div>
+
+        <button onclick="logout()" style="background:#333;">Sign Out</button>
+    </div>
 </div>
 
 <script>
-// === SAFE STORAGE (Fixes SecurityError) ===
+// Safe Storage
 const Storage = {
-    get(key, defaultValue = null) {
-        try {
-            const value = localStorage.getItem(key);
-            return value ? JSON.parse(value) : defaultValue;
-        } catch (e) {
-            console.warn("localStorage blocked:", e);
-            return defaultValue;
-        }
-    },
-    set(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) {
-            console.warn("Cannot save to localStorage:", e);
-        }
-    },
-    remove(key) {
-        try { localStorage.removeItem(key); } catch(e){}
-    }
+    get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; }},
+    set: (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 
-let _user = null;
-let _mode = 'login';
-let _job = null;
-let _downloading = false;
+let currentUser = null;
 
-function launchApp(user){
-  _user = user;
-  Storage.set('ytdl_user', user);
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('main-app').classList.add('visible');
-  
-  document.getElementById('hdr-avatar').textContent = user.name ? user.name[0].toUpperCase() : '?';
-  document.getElementById('hdr-name').textContent = user.name || 'User';
-  document.getElementById('hdr-email').textContent = user.email || '';
-  
-  loadYtdlpVer();
-  loadHistory();
+function login() {
+    const email = document.getElementById('email').value;
+    currentUser = { name: email.split('@')[0], email: email };
+    Storage.set('user', currentUser);
+    showMainApp();
 }
 
-function signOut(){
-  _user = null;
-  Storage.remove('ytdl_user');
-  document.getElementById('main-app').classList.remove('visible');
-  document.getElementById('login-screen').style.display = 'flex';
+function googleLogin() {
+    const email = prompt("Enter your Gmail address:");
+    if (email) {
+        currentUser = { name: email.split('@')[0], email: email };
+        Storage.set('user', currentUser);
+        showMainApp();
+    }
 }
 
-// Rest of your script functions (paste your existing script functions here)
-document.addEventListener('DOMContentLoaded', () => {
-  const saved = Storage.get('ytdl_user');
-  if (saved) launchApp(saved);
-  initDesktopFeatures();
-});
+function showMainApp() {
+    document.getElementById('login-area').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+}
+
+function logout() {
+    Storage.set('user', null);
+    location.reload();
+}
+
+// Download Function
+async function startDownload() {
+    const url = document.getElementById('url').value.trim();
+    if (!url) return alert("Please paste a YouTube link");
+
+    const log = document.getElementById('log');
+    const status = document.getElementById('status');
+    
+    log.innerHTML = "Starting download...\n";
+    status.textContent = "Downloading...";
+
+    try {
+        const res = await fetch('/api/download', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ url: url })
+        });
+        const data = await res.json();
+
+        if (data.job_id) {
+            const es = new EventSource(`/api/progress/${data.job_id}`);
+            es.onmessage = (e) => {
+                const job = JSON.parse(e.data);
+                log.innerHTML += `Progress: ${job.progress || 0}%\n`;
+                log.scrollTop = log.scrollHeight;
+
+                if (job.done) {
+                    es.close();
+                    status.textContent = job.status === "done" ? "✅ Completed!" : "❌ Failed";
+                }
+            };
+        }
+    } catch (err) {
+        log.innerHTML += "Error: " + err + "\n";
+    }
+}
+
+// Auto login if saved
+if (Storage.get('user')) {
+    currentUser = Storage.get('user');
+    showMainApp();
+}
 </script>
+
 </body>
 </html>
