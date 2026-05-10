@@ -671,12 +671,12 @@ body::before{
       <div class="card settings-section">
         <div class="card-label">Save Folder</div>
         <p style="font-size:12px;color:var(--fg3);margin-bottom:8px">
-          Videos are saved to your Downloads folder by default.<br>
-          To change it, edit the path in <code style="background:var(--s3);padding:1px 6px;border-radius:4px">app.py</code> or set <code style="background:var(--s3);padding:1px 6px;border-radius:4px">YTDL_PATH</code> environment variable.
+          Your preferred save folder is remembered per account.
         </p>
-        <div class="path-bar">
+        <div class="path-bar" onclick="changeSavePath()" style="cursor:pointer">
           <span>📁</span>
           <span class="path-text" id="set-path">~/Downloads</span>
+          <span style="font-size:11px;color:var(--fg3);margin-left:auto">click to change</span>
         </div>
       </div>
 
@@ -685,16 +685,23 @@ body::before{
         <div class="card-label">System</div>
         <div class="sys-row">
           <span class="key">FFmpeg</span>
-          <span class="badge badge-green">✓ Ready — Sound Works</span>
+          <span class="badge badge-green" id="ffmpeg-badge">✓ Ready — Sound Works</span>
         </div>
         <div class="sys-row">
-          <span class="key">yt-dlp version</span>
+          <span class="key">yt-dlp</span>
           <span class="val" id="ytdlp-ver">loading…</span>
         </div>
         <div class="sys-row">
-          <span class="key">Backend</span>
-          <span class="badge badge-green">✓ Running on localhost:5000</span>
+          <span class="key">Local URL</span>
+          <span class="val">http://localhost:5000</span>
         </div>
+        <div class="sys-row">
+          <span class="key">Network URL</span>
+          <span class="val" id="network-url">loading…</span>
+        </div>
+        <p style="font-size:11px;color:var(--fg3);margin-top:8px">
+          Share the Network URL with anyone on your WiFi — they can use the app from their own device!
+        </p>
       </div>
 
       <!-- Update -->
@@ -728,11 +735,12 @@ body::before{
 /* ════════════════════════════════════════════════════════════
    STATE
 ════════════════════════════════════════════════════════════ */
-let _user   = null;   // {email, name, method}
+let _user   = null;   // {email, name, method, prefs}
 let _mode   = 'login';
 let _stars  = 0;
 let _job    = null;   // active download job EventSource
 let _downloading = false;
+let _savedPath = '';  // current save path for this user
 
 const DEFAULT_PATH = (navigator.platform.includes('Win') ? '%USERPROFILE%\\Downloads' : '~/Downloads');
 
@@ -804,8 +812,49 @@ function launchApp(user){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('main-app').classList.add('visible');
   fillUserUI();
+  applyPrefs(user.prefs || {});
   loadYtdlpVer();
-  toast(`Welcome back, ${user.name.split(' ')[0]}! 👋`, 'success');
+  // Attach change listeners to save prefs automatically
+  ['sel-mode','sel-quality','sel-format'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.onchange = () => savePrefs();
+  });
+  const isNew = !user.prefs || Object.keys(user.prefs).length === 0;
+  toast(isNew ? `Welcome, ${user.name.split(' ')[0]}! 🎉` : `Welcome back, ${user.name.split(' ')[0]}! 👋`, 'success');
+}
+
+function applyPrefs(prefs){
+  if(!prefs) return;
+  const set = (id, val) => { if(val){ const el=document.getElementById(id); if(el) el.value=val; }};
+  set('sel-mode',    prefs.mode);
+  set('sel-quality', prefs.quality);
+  set('sel-format',  prefs.format);
+  const path = prefs.savepath || DEFAULT_PATH;
+  const pl = document.getElementById('path-display');
+  const sp = document.getElementById('set-path');
+  if(pl) pl.textContent = path;
+  if(sp) sp.textContent = path;
+  if(prefs.savepath) _savedPath = prefs.savepath;
+}
+
+async function savePrefs(){
+  if(!_user) return;
+  const prefs = {
+    mode:     document.getElementById('sel-mode')?.value    || 'Video',
+    quality:  document.getElementById('sel-quality')?.value || 'Best (Max Quality)',
+    format:   document.getElementById('sel-format')?.value  || 'mp4',
+    savepath: _savedPath || DEFAULT_PATH,
+  };
+  // Update cached user prefs so they persist on refresh
+  _user.prefs = prefs;
+  localStorage.setItem('ytdl_user', JSON.stringify(_user));
+  try {
+    await fetch('/api/prefs', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({user: _user.email, prefs})
+    });
+  } catch {}
 }
 
 function fillUserUI(){
@@ -818,8 +867,6 @@ function fillUserUI(){
   document.getElementById('set-name').textContent     = _user.name;
   document.getElementById('set-email').textContent    = _user.email;
   document.getElementById('set-method').textContent   = 'Signed in with: ' + (_user.method==='google' ? 'Google' : 'Email & Password');
-  document.getElementById('path-display').textContent = DEFAULT_PATH;
-  document.getElementById('set-path').textContent     = DEFAULT_PATH;
 }
 
 function signOut(){
@@ -894,7 +941,7 @@ async function startDownload(){
     mode:    document.getElementById('sel-mode').value,
     quality: document.getElementById('sel-quality').value,
     format:  document.getElementById('sel-format').value,
-    path:    '',
+    path:    _savedPath || '',
     user:    _user?.email||'',
   };
 
@@ -998,7 +1045,39 @@ async function loadYtdlpVer(){
     const r = await fetch('/api/ytdlp-version');
     const d = await r.json();
     document.getElementById('ytdlp-ver').textContent = 'v'+d.version;
+    if(!d.ffmpeg){
+      const fb = document.getElementById('ffmpeg-badge');
+      if(fb) fb.textContent = '✓ Built-in (static-ffmpeg)';
+    }
   }catch{}
+  // Try to get network IP from the page's host
+  try{
+    const host = window.location.hostname;
+    const nuEl = document.getElementById('network-url');
+    if(nuEl){
+      if(host === 'localhost' || host === '127.0.0.1'){
+        nuEl.textContent = 'Open from another device to see its address';
+        nuEl.style.color = 'var(--fg3)';
+      } else {
+        nuEl.textContent = `http://${host}:5000`;
+        nuEl.style.color = 'var(--grn)';
+      }
+    }
+  }catch{}
+}
+
+function changeSavePath(){
+  const current = _savedPath || DEFAULT_PATH;
+  const newPath = prompt('Enter save folder path:', current);
+  if(newPath && newPath.trim()){
+    _savedPath = newPath.trim();
+    const pl = document.getElementById('path-display');
+    const sp = document.getElementById('set-path');
+    if(pl) pl.textContent = _savedPath;
+    if(sp) sp.textContent = _savedPath;
+    savePrefs();
+    toast('Save folder updated ✔', 'success');
+  }
 }
 
 async function updateYtdlp(){
