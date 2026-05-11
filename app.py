@@ -1,106 +1,57 @@
-#!/usr/bin/env python3
-"""
-YouTube Downloader — Clean & Powerful Web App
-"""
-
-import subprocess, sys, os
-
-def pip(pkg):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", pkg, "-q"],
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-# Install dependencies
-for p, i in [("flask", "flask"), ("yt-dlp", "yt_dlp"), ("static-ffmpeg", "static_ffmpeg")]:
-    try:
-        __import__(i)
-    except:
-        print(f"Installing {p}...")
-        pip(p)
-
+import subprocess, sys, os, threading, uuid, json, time, socket, webbrowser
 from flask import Flask, request, jsonify, Response, send_from_directory
-import yt_dlp, static_ffmpeg, shutil, json, hashlib, datetime
-import threading, uuid, re, time, socket
-import webbrowser
 
-static_ffmpeg.add_paths()
-FFMPEG = shutil.which("ffmpeg") or ""
-
-APP_DIR = os.path.join(os.path.expanduser("~"), ".ytdl_app")
-HIST_FILE = os.path.join(APP_DIR, "history.json")
-os.makedirs(APP_DIR, exist_ok=True)
-
-def jload(p, d):
-    try:
-        with open(p) as f: return json.load(f)
-    except: return d
-
-def jsave(p, d):
-    with open(p, "w") as f: json.dump(d, f, indent=2)
-
-def get_local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except:
-        return "localhost"
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-app = Flask(__name__, static_folder=SCRIPT_DIR, template_folder=SCRIPT_DIR)
-
+# Core Setup
+app = Flask(__name__, static_folder=".", template_folder=".")
 _jobs = {}
 
 @app.route("/")
-def index():
-    return send_from_directory(SCRIPT_DIR, "index.html")
+def index(): return send_from_directory(".", "index.html")
 
 @app.route("/api/download", methods=["POST"])
 def start_download():
     d = request.json or {}
     url = d.get("url", "").strip()
-    quality = d.get("quality", "Best")
+    is_audio = d.get("is_audio", False)
+    quality = d.get("quality", "1080") # Default to 1080p
 
-    if not url:
-        return jsonify(error="No URL provided"), 400
+    if not url: return jsonify(error="No URL provided"), 400
 
     job_id = str(uuid.uuid4())[:8]
-    _jobs[job_id] = {"status":"starting", "progress":0, "speed":"", "eta":"", "log":[], "title":"", "done":False}
+    _jobs[job_id] = {"status":"Initializing", "progress":0, "speed":"", "eta":"", "title":"", "done":False}
 
     def run():
         job = _jobs[job_id]
         try:
-            job["status"] = "downloading"
-            job["log"].append("Starting download...")
-
             def hook(d):
                 if d['status'] == 'downloading':
                     p = d.get('_percent_str', '0').replace('%','')
                     job["progress"] = float(p) / 100 if p.replace('.','').isdigit() else 0
                     job["speed"] = d.get('_speed_str', '')
                     job["eta"] = d.get('_eta_str', '')
+                    job["status"] = "Downloading..."
 
+            # Quality Logic: Finds best video UP TO the requested height
+            # 4K = 2160, 2K = 1440, etc.
+            format_str = 'bestaudio/best' if is_audio else f'bestvideo[height<={quality}]+bestaudio/best'
+            
             opts = {
                 'outtmpl': os.path.join(os.path.expanduser("~"), "Downloads", '%(title)s.%(ext)s'),
                 'progress_hooks': [hook],
+                'format': format_str,
                 'merge_output_format': 'mp4',
-                'format': 'bestvideo+bestaudio/best' if quality == "Best" else f"bestvideo[height<={quality}]+bestaudio/best",
             }
 
+            import yt_dlp
             with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(url, download=False)
+                info = ydl.extract_info(url, download=True)
                 job["title"] = info.get('title', 'Video')
-                ydl.download([url])
 
-            job["status"] = "done"
+            job["status"] = "Completed"
             job["progress"] = 1
             job["done"] = True
-            job["log"].append("✅ Download Completed!")
-
         except Exception as e:
-            job["status"] = "error"
-            job["log"].append(f"Error: {str(e)}")
+            job["status"] = "Error"
             job["done"] = True
 
     threading.Thread(target=run, daemon=True).start()
@@ -114,19 +65,8 @@ def progress(job_id):
             if not job: break
             yield f"data: {json.dumps(job)}\n\n"
             if job.get("done"): break
-            time.sleep(0.3)
+            time.sleep(0.5)
     return Response(stream(), mimetype="text/event-stream")
 
 if __name__ == "__main__":
-    local_ip = get_local_ip()
-    print("\n" + "="*60)
-    print("   🎥 YouTube Downloader")
-    print("="*60)
-    print(f"   Local:   http://localhost:5000")
-    print(f"   Network: http://{local_ip}:5000")
-    print("="*60)
-
-    # Auto open browser
-    threading.Timer(1.5, lambda: webbrowser.open("http://localhost:5000")).start()
-    
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=5000)
