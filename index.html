@@ -1,99 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>YouTube Downloader</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<style>
-/* [Your existing full CSS - I kept it the same for now] */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:      #0b0b0b;
-  --bg2:     #111111;
-  --card:    #161616;
-  --card2:   #1d1d1d;
-  --s3:      #242424;
-  --s4:      #2c2c2c;
-  --bdr:     #2e2e2e;
-  --red:     #e63232;
-  --redh:    #ff4f4f;
-  --grn:     #22c55e;
-  --fg:      #f2f2f2;
-  --fg2:     #888;
-  --fg3:     #444;
-  --radius:  14px;
-}
-html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--fg);overflow:hidden}
-body::before{content:"";position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0;}
-/* ... (I kept your full CSS to save space - just copy your old CSS here if you want) */
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Downloader</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #ff0000;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #fff;
+            min-height: 100vh;
+        }
+        header {
+            background: #1f1f1f;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid var(--primary);
+        }
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            background: #1f1f1f;
+            color: white;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 14px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin: 8px 0;
+        }
+        button:hover { background: #cc0000; }
+        .section {
+            background: #1f1f1f;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .progress-bar {
+            height: 8px;
+            background: var(--primary);
+            width: 0%;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .log {
+            background: #000;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .history-item {
+            padding: 10px;
+            background: #2a2a2a;
+            margin: 8px 0;
+            border-radius: 8px;
+        }
+    </style>
 </head>
 <body>
+    <header>
+        <h1>▶ YouTube Downloader</h1>
+        <p>Max Quality • Shorts Supported • Local</p>
+    </header>
 
-<!-- Your HTML body remains mostly same, only script is updated -->
+    <div class="container">
+        <!-- Login / Register -->
+        <div id="auth-section" class="section">
+            <h2>Account</h2>
+            <input type="email" id="email" placeholder="Email">
+            <input type="password" id="password" placeholder="Password">
+            <input type="text" id="name" placeholder="Your Name (for register)">
+            <button onclick="login()">Login</button>
+            <button onclick="register()">Register</button>
+            <button onclick="googleLogin()">Continue with Google</button>
+        </div>
 
-<div id="app">
-  <!-- [Keep your entire HTML body as it is] -->
-</div>
+        <!-- Main Downloader -->
+        <div id="main-section" class="section" style="display:none;">
+            <h2>Download Video / Short</h2>
+            <input type="text" id="url" placeholder="Paste YouTube or Shorts URL here...">
+            <button onclick="startDownload()">⬇ Download</button>
 
-<script>
-// === SAFE STORAGE (Fixes SecurityError) ===
-const Storage = {
-    get(key, defaultValue = null) {
-        try {
-            const value = localStorage.getItem(key);
-            return value ? JSON.parse(value) : defaultValue;
-        } catch (e) {
-            console.warn("localStorage blocked:", e);
-            return defaultValue;
-        }
-    },
-    set(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) {
-            console.warn("Cannot save to localStorage:", e);
-        }
-    },
-    remove(key) {
-        try { localStorage.removeItem(key); } catch(e){}
-    }
-};
+            <div id="progress-section" style="display:none;">
+                <h3 id="title"></h3>
+                <div class="progress-bar" id="progress"></div>
+                <p id="status"></p>
+                <div class="log" id="log"></div>
+            </div>
 
-let _user = null;
-let _mode = 'login';
-let _job = null;
-let _downloading = false;
+            <button onclick="showHistory()">📜 View History</button>
+        </div>
 
-function launchApp(user){
-  _user = user;
-  Storage.set('ytdl_user', user);
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('main-app').classList.add('visible');
-  
-  document.getElementById('hdr-avatar').textContent = user.name ? user.name[0].toUpperCase() : '?';
-  document.getElementById('hdr-name').textContent = user.name || 'User';
-  document.getElementById('hdr-email').textContent = user.email || '';
-  
-  loadYtdlpVer();
-  loadHistory();
-}
+        <!-- History -->
+        <div id="history-section" class="section" style="display:none;">
+            <h2>Download History</h2>
+            <div id="history-list"></div>
+            <button onclick="backToMain()">← Back</button>
+        </div>
+    </div>
 
-function signOut(){
-  _user = null;
-  Storage.remove('ytdl_user');
-  document.getElementById('main-app').classList.remove('visible');
-  document.getElementById('login-screen').style.display = 'flex';
-}
-
-// Rest of your script functions (paste your existing script functions here)
-document.addEventListener('DOMContentLoaded', () => {
-  const saved = Storage.get('ytdl_user');
-  if (saved) launchApp(saved);
-  initDesktopFeatures();
-});
-</script>
+    <script src="idk.js"></script>
 </body>
 </html>
