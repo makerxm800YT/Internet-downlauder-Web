@@ -3,73 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YT Downloader</title>
+    <title>StreamVault 4K</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: system-ui; background:#0f0f0f; color:white; text-align:center; padding:20px; }
-        .card { max-width:500px; margin:40px auto; background:#1f1f1f; padding:30px; border-radius:20px; }
-        input { width:100%; padding:15px; margin:15px 0; border-radius:12px; border:none; background:#333; color:white; font-size:16px; }
-        button { width:100%; padding:15px; margin:10px 0; border:none; border-radius:12px; font-size:17px; cursor:pointer; }
-        .btn-red { background:#ff0000; }
-        .progress { height:10px; background:#ff0000; width:0%; margin:15px 0; border-radius:999px; }
+        body { background: #050505; color: white; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-premium { background: linear-gradient(135deg, #ff0000 0%, #8b0000 100%); transition: all 0.3s; }
+        .btn-premium:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255, 0, 0, 0.3); }
     </style>
 </head>
-<body>
-    <div class="card">
-        <h1>▶ YouTube Downloader</h1>
-        <p>Local • Private • Fast</p>
+<body class="flex items-center justify-center min-h-screen p-6">
 
-        <input type="text" id="url" placeholder="Paste YouTube or Shorts URL">
-        
-        <button class="btn-red" onclick="download()">⬇ Download (Best Quality)</button>
-        <button onclick="downloadAudio()">🎵 Download Audio Only (MP3)</button>
+    <div class="glass w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black tracking-tighter mb-2">STREAM<span class="text-red-600">VAULT</span></h1>
+            <p class="text-gray-400 text-sm uppercase tracking-widest">Ultra HD Downloader</p>
+        </div>
 
-        <div id="progress-area" style="display:none; margin-top:20px;">
-            <h3 id="title"></h3>
-            <div class="progress" id="progress"></div>
-            <p id="status"></p>
-            <div id="log" style="text-align:left; background:#000; padding:10px; border-radius:10px; max-height:200px; overflow:auto; font-size:14px;"></div>
+        <div class="space-y-6">
+            <input type="text" id="url" placeholder="Paste link here..." 
+                class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-600 transition-all text-center text-lg">
+
+            <div class="flex flex-col gap-2">
+                <label class="text-xs font-bold text-gray-500 ml-2">SELECT QUALITY</label>
+                <select id="quality" class="w-full bg-white/5 border border-white/10 p-4 rounded-2xl focus:outline-none appearance-none cursor-pointer">
+                    <option value="2160" class="bg-black">4K Ultra HD (2160p)</option>
+                    <option value="1440" class="bg-black">2K Quad HD (1440p)</option>
+                    <option value="1080" class="bg-black" selected>Full HD (1080p)</option>
+                    <option value="720" class="bg-black">HD (720p)</option>
+                    <option value="480" class="bg-black">SD (480p)</option>
+                    <option value="360" class="bg-black">Mobile (360p)</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="startDownload(false)" class="btn-premium p-5 rounded-2xl font-bold text-lg">Download</button>
+                <button onclick="startDownload(true)" class="bg-white/10 hover:bg-white/20 p-5 rounded-2xl font-bold text-lg">MP3 Only</button>
+            </div>
+        </div>
+
+        <div id="progress-area" class="hidden mt-8 p-6 bg-black/40 rounded-3xl border border-white/5 animate-pulse">
+            <div class="flex justify-between items-center mb-3">
+                <span id="video-title" class="text-sm font-medium truncate w-40 text-gray-300">Preparing...</span>
+                <span id="speed" class="text-[10px] font-mono text-red-500 bg-red-500/10 px-2 py-1 rounded">0 MB/s</span>
+            </div>
+            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div id="bar" class="h-full bg-red-600 w-0 transition-all duration-500"></div>
+            </div>
+            <div class="flex justify-between mt-3 text-[10px] text-gray-500 uppercase font-bold">
+                <span id="status-text">Idle</span>
+                <span id="eta">--:--</span>
+            </div>
         </div>
     </div>
 
     <script>
-        async function download() {
-            const url = document.getElementById("url").value.trim();
-            if (!url) return alert("Paste a URL first!");
+        async function startDownload(isAudio) {
+            const url = document.getElementById("url").value;
+            const quality = document.getElementById("quality").value;
+            if(!url) return alert("Paste a URL first!");
 
+            document.getElementById("progress-area").classList.remove("hidden");
+            
             const res = await fetch("/api/download", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({url, quality: "Best"})
+                body: JSON.stringify({ url, is_audio: isAudio, quality: quality })
             });
             const data = await res.json();
-            if (data.job_id) watchProgress(data.job_id);
+            if (data.job_id) trackProgress(data.job_id);
         }
 
-        async function downloadAudio() {
-            const url = document.getElementById("url").value.trim();
-            if (!url) return alert("Paste a URL first!");
-
-            const res = await fetch("/api/download", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({url, quality: "Best"})
-            });
-            const data = await res.json();
-            if (data.job_id) watchProgress(data.job_id);
-        }
-
-        function watchProgress(job_id) {
-            document.getElementById("progress-area").style.display = "block";
-            const evt = new EventSource(`/api/progress/${job_id}`);
-            evt.onmessage = e => {
+        function trackProgress(id) {
+            const evt = new EventSource(`/api/progress/${id}`);
+            evt.onmessage = (e) => {
                 const job = JSON.parse(e.data);
-                document.getElementById("title").textContent = job.title || "Downloading...";
-                document.getElementById("progress").style.width = job.progress * 100 + "%";
-                document.getElementById("status").textContent = `${job.status} ${job.speed} ${job.eta}`;
-                
-                const log = document.getElementById("log");
-                log.innerHTML = job.log.map(l => `<div>${l}</div>`).join('');
-                log.scrollTop = log.scrollHeight;
+                document.getElementById("bar").style.width = (job.progress * 100) + "%";
+                document.getElementById("status-text").innerText = job.status;
+                document.getElementById("video-title").innerText = job.title || "Downloading...";
+                document.getElementById("speed").innerText = job.speed || "0 MB/s";
+                document.getElementById("eta").innerText = job.eta || "00:00";
+                if(job.done) {
+                    evt.close();
+                    document.getElementById("status-text").innerText = "SAVED TO DOWNLOADS";
+                }
             };
         }
     </script>
