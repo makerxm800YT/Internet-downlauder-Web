@@ -2,92 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamVault 4K</title>
+    <title>StreamVault JS | Unlimited</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #050505; color: white; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-        .btn-premium { background: linear-gradient(135deg, #ff0000 0%, #8b0000 100%); transition: all 0.3s; }
-        .btn-premium:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255, 0, 0, 0.3); }
+        body { background: #080808; color: white; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+        .glow-button { background: #ff0000; box-shadow: 0 0 20px rgba(255, 0, 0, 0.4); transition: 0.3s; }
+        .glow-button:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(255, 0, 0, 0.6); }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-6">
+<body class="flex items-center justify-center min-h-screen">
+    <div class="glass p-10 rounded-[3rem] w-full max-w-lg text-center">
+        <h1 class="text-4xl font-black mb-2 tracking-tighter">YT <span class="text-red-600">FREE</span></h1>
+        <p class="text-gray-500 text-xs mb-8 tracking-widest uppercase">Unlimited • No Python • High Speed</p>
+        
+        <input type="text" id="url" placeholder="Paste link here..." 
+            class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl mb-4 focus:outline-none focus:ring-2 focus:ring-red-600 transition-all">
 
-    <div class="glass w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl">
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-black tracking-tighter mb-2">STREAM<span class="text-red-600">VAULT</span></h1>
-            <p class="text-gray-400 text-sm uppercase tracking-widest">Ultra HD Downloader</p>
-        </div>
+        <select id="quality" class="w-full bg-white/5 border border-white/10 p-4 rounded-2xl mb-6 outline-none">
+            <option value="highest" class="bg-black">Highest Quality (4K/1080p)</option>
+            <option value="137" class="bg-black">1080p Only</option>
+            <option value="136" class="bg-black">720p Only</option>
+            <option value="134" class="bg-black">360p (Fast)</option>
+        </select>
 
-        <div class="space-y-6">
-            <input type="text" id="url" placeholder="Paste link here..." 
-                class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-600 transition-all text-center text-lg">
-
-            <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-gray-500 ml-2">SELECT QUALITY</label>
-                <select id="quality" class="w-full bg-white/5 border border-white/10 p-4 rounded-2xl focus:outline-none appearance-none cursor-pointer">
-                    <option value="2160" class="bg-black">4K Ultra HD (2160p)</option>
-                    <option value="1440" class="bg-black">2K Quad HD (1440p)</option>
-                    <option value="1080" class="bg-black" selected>Full HD (1080p)</option>
-                    <option value="720" class="bg-black">HD (720p)</option>
-                    <option value="480" class="bg-black">SD (480p)</option>
-                    <option value="360" class="bg-black">Mobile (360p)</option>
-                </select>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="startDownload(false)" class="btn-premium p-5 rounded-2xl font-bold text-lg">Download</button>
-                <button onclick="startDownload(true)" class="bg-white/10 hover:bg-white/20 p-5 rounded-2xl font-bold text-lg">MP3 Only</button>
-            </div>
-        </div>
-
-        <div id="progress-area" class="hidden mt-8 p-6 bg-black/40 rounded-3xl border border-white/5 animate-pulse">
-            <div class="flex justify-between items-center mb-3">
-                <span id="video-title" class="text-sm font-medium truncate w-40 text-gray-300">Preparing...</span>
-                <span id="speed" class="text-[10px] font-mono text-red-500 bg-red-500/10 px-2 py-1 rounded">0 MB/s</span>
-            </div>
-            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                <div id="bar" class="h-full bg-red-600 w-0 transition-all duration-500"></div>
-            </div>
-            <div class="flex justify-between mt-3 text-[10px] text-gray-500 uppercase font-bold">
-                <span id="status-text">Idle</span>
-                <span id="eta">--:--</span>
-            </div>
-        </div>
+        <button onclick="downloadVideo()" class="glow-button w-full p-5 rounded-2xl font-bold text-lg">🚀 Download Now</button>
+        
+        <p id="status" class="mt-6 text-sm text-gray-400"></p>
     </div>
 
     <script>
-        async function startDownload(isAudio) {
-            const url = document.getElementById("url").value;
-            const quality = document.getElementById("quality").value;
-            if(!url) return alert("Paste a URL first!");
+        function downloadVideo() {
+            const url = document.getElementById('url').value;
+            const quality = document.getElementById('quality').value;
+            const status = document.getElementById('status');
 
-            document.getElementById("progress-area").classList.remove("hidden");
+            if(!url) return alert("Please enter a URL");
+
+            status.innerText = "⚡ Preparing your download...";
             
-            const res = await fetch("/api/download", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ url, is_audio: isAudio, quality: quality })
-            });
-            const data = await res.json();
-            if (data.job_id) trackProgress(data.job_id);
-        }
-
-        function trackProgress(id) {
-            const evt = new EventSource(`/api/progress/${id}`);
-            evt.onmessage = (e) => {
-                const job = JSON.parse(e.data);
-                document.getElementById("bar").style.width = (job.progress * 100) + "%";
-                document.getElementById("status-text").innerText = job.status;
-                document.getElementById("video-title").innerText = job.title || "Downloading...";
-                document.getElementById("speed").innerText = job.speed || "0 MB/s";
-                document.getElementById("eta").innerText = job.eta || "00:00";
-                if(job.done) {
-                    evt.close();
-                    document.getElementById("status-text").innerText = "SAVED TO DOWNLOADS";
-                }
-            };
+            // In Node version, we just redirect the window to the download path
+            // The browser handles the download progress automatically!
+            window.location.href = `/download?url=${encodeURIComponent(url)}&quality=${quality}`;
+            
+            setTimeout(() => {
+                status.innerText = "✅ Check your browser downloads!";
+            }, 3000);
         }
     </script>
 </body>
