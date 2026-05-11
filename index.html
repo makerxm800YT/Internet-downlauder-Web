@@ -16,7 +16,7 @@
         }
         header {
             background: #1f1f1f;
-            padding: 15px;
+            padding: 20px;
             text-align: center;
             border-bottom: 3px solid var(--primary);
         }
@@ -33,10 +33,10 @@
             border-radius: 8px;
             background: #1f1f1f;
             color: white;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         button {
-            padding: 14px 20px;
+            padding: 15px;
             background: var(--primary);
             color: white;
             border: none;
@@ -65,9 +65,10 @@
             padding: 12px;
             font-family: monospace;
             font-size: 14px;
-            max-height: 220px;
+            max-height: 250px;
             overflow-y: auto;
             margin-top: 10px;
+            border-radius: 6px;
         }
         .history-item {
             padding: 12px;
@@ -84,20 +85,20 @@
     </header>
 
     <div class="container">
-        <!-- Auth -->
+        <!-- Auth Section -->
         <div id="auth-section" class="section">
             <h2>Account</h2>
             <input type="email" id="email" placeholder="Email">
             <input type="password" id="password" placeholder="Password">
-            <input type="text" id="name" placeholder="Your Name (for Register)">
+            <input type="text" id="name" placeholder="Your Name (Register only)">
             <button onclick="login()">Login</button>
             <button onclick="register()">Register</button>
             <button onclick="googleLogin()">Continue with Google</button>
         </div>
 
-        <!-- Main -->
+        <!-- Main Download Section -->
         <div id="main-section" class="section" style="display:none;">
-            <h2>Download Video / Shorts</h2>
+            <h2>Download Video or Short</h2>
             <input type="text" id="url" placeholder="Paste YouTube or Shorts URL here...">
             <button onclick="startDownload()">⬇ Start Download</button>
 
@@ -111,7 +112,7 @@
             <button onclick="showHistory()" style="background:#444;">📜 View History</button>
         </div>
 
-        <!-- History -->
+        <!-- History Section -->
         <div id="history-section" class="section" style="display:none;">
             <h2>Download History</h2>
             <div id="history-list"></div>
