@@ -1,30 +1,38 @@
 @echo off
-title YT Downloader - Starting...
+title StreamVault JS - Unlimited Downloader
+color 0A
 
 echo ========================================
-echo    YouTube Downloader - Starting
+echo    StreamVault JS - Starting Engine
 echo ========================================
 
-:: Check Python
-python --version >nul 2>&1
+:: 1. Check for Node.js
+node -v >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Python not found!
-    echo Please install Python from: https://python.org/downloads
-    echo Make sure to check "Add Python to PATH"
+    echo [ERROR] Node.js is not installed!
+    echo Please install it from: https://nodejs.org/
     pause
     exit
 )
 
-echo [1/3] Installing / Updating packages...
-python -m pip install flask yt-dlp static-ffmpeg --upgrade -q
+:: 2. Check for package.json, if not exists, create it
+if not exist "package.json" (
+    echo [1/3] Initializing Project...
+    call npm init -y >nul
+)
 
-echo [2/3] Starting Server...
-echo The browser will open automatically...
+:: 3. Install Dependencies (The "Unlimited" Engine)
+echo [2/3] Installing Dependencies (Express + YTDL)...
+call npm install express @distube/ytdl-core cors --quiet
 
-:: Open browser first
-start http://localhost:5000
+:: 4. Launch Browser and Server
+echo [3/3] Launching Web Interface...
+start http://localhost:3000
 
-:: Start the Python app
-python app.py
+echo ----------------------------------------
+echo SERVER IS LIVE AT http://localhost:3000
+echo KEEP THIS WINDOW OPEN TO DOWNLOAD
+echo ----------------------------------------
+node server.js
 
 pause
