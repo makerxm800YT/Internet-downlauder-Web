@@ -3,124 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Downloader</title>
+    <title>YT Downloader</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
-        :root { --primary: #ff0000; }
+        :root {
+            --primary: #ff0000;
+            --dark: #0a0a0a;
+            --card: #1a1a1a;
+        }
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f0f0f;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a, #1f1f1f);
             color: #fff;
             min-height: 100vh;
         }
         header {
-            background: #1f1f1f;
-            padding: 20px;
+            background: #111;
+            padding: 25px;
             text-align: center;
-            border-bottom: 3px solid var(--primary);
+            border-bottom: 4px solid var(--primary);
         }
         .container {
-            max-width: 420px;
-            margin: 30px auto;
+            max-width: 460px;
+            margin: 40px auto;
             padding: 0 15px;
         }
-        .section {
-            background: #1f1f1f;
-            margin: 20px 0;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        .card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: transform 0.3s;
         }
+        .card:hover { transform: translateY(-5px); }
+
         input {
             width: 100%;
-            padding: 14px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #252525;
+            border: none;
+            border-radius: 12px;
+            color: white;
             font-size: 16px;
-            border: none;
-            border-radius: 10px;
-            background: #2a2a2a;
-            color: white;
-            margin-bottom: 12px;
         }
+        input:focus {
+            outline: 2px solid var(--primary);
+        }
+
         button {
-            padding: 12px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 15px;
-            cursor: pointer;
             width: 100%;
-            margin: 8px 0;
+            padding: 14px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
             transition: all 0.3s;
         }
-        button:hover { transform: translateY(-2px); background: #cc0000; }
+        button:hover {
+            transform: scale(1.03);
+            box-shadow: 0 5px 15px rgba(255,0,0,0.4);
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #cc0000; }
+        .btn-google { background: #4285F4; color: white; }
+        .btn-secondary { background: #333; color: white; }
 
-        .btn-small {
-            padding: 10px;
+        .section { display: none; }
+        .active { display: block; }
+
+        .progress-bar {
+            height: 12px;
+            background: var(--primary);
+            width: 0%;
+            border-radius: 999px;
+            margin: 15px 0;
+            transition: width 0.4s ease;
+        }
+        .log {
+            background: #000;
+            padding: 15px;
+            border-radius: 12px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
             font-size: 14px;
         }
-
-        .shake {
-            animation: shake 0.4s ease-in-out;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-8px); }
-            40%, 80% { transform: translateX(8px); }
-        }
-
-        .success { animation: pop 0.3s; }
-        @keyframes pop {
-            0% { transform: scale(0.9); }
-            100% { transform: scale(1); }
-        }
-
-        .log { background: #000; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 14px; max-height: 220px; overflow-y: auto; }
-        .progress-bar { height: 10px; background: var(--primary); width: 0%; border-radius: 4px; margin: 12px 0; transition: width 0.3s; }
     </style>
 </head>
 <body>
     <header>
-        <h1>▶ YouTube Downloader</h1>
-        <p>Fast • Max Quality • Shorts Supported</p>
+        <h1>▶ YT Downloader</h1>
+        <p>Local • Private • Max Quality</p>
     </header>
 
     <div class="container">
-        <!-- Auth Section -->
-        <div id="auth-section" class="section">
-            <h2 style="margin-bottom:20px; text-align:center;">Sign In</h2>
-            <input type="email" id="email" placeholder="Email">
+        <!-- Auth Card -->
+        <div id="auth-card" class="card active">
+            <h2 style="text-align:center; margin-bottom:20px;">Welcome</h2>
+            <input type="email" id="email" placeholder="Email Address">
             <input type="password" id="password" placeholder="Password">
-            <input type="text" id="name" placeholder="Your Name (for Register only)">
+            <input type="text" id="name" placeholder="Your Name (Register only)">
 
-            <button onclick="login()">Login</button>
-            <button onclick="register()">Register</button>
-            <button onclick="googleLogin()" style="background:#4285F4;">Continue with Google</button>
+            <button class="btn-primary" onclick="login()">Login</button>
+            <button class="btn-primary" onclick="register()">Create Account</button>
+            <button class="btn-google" onclick="googleLogin()">
+                <i class="fab fa-google"></i> Continue with Google
+            </button>
         </div>
 
-        <!-- Main Download Section -->
-        <div id="main-section" class="section" style="display:none;">
-            <h2>Download Video / Short</h2>
-            <input type="text" id="url" placeholder="Paste YouTube or Shorts URL...">
-            <button onclick="startDownload()">⬇ Start Download</button>
+        <!-- Main Download Card -->
+        <div id="main-card" class="card section">
+            <h2>Download Video</h2>
+            <input type="text" id="url" placeholder="Paste YouTube or Shorts link here...">
+            <button class="btn-primary" onclick="startDownload()">⬇ Start Download</button>
 
-            <div id="progress-section" style="display:none; margin-top:20px;">
-                <h3 id="title"></h3>
+            <div id="progress-area" style="display:none; margin-top:20px;">
+                <h3 id="title" style="margin-bottom:10px;"></h3>
                 <div class="progress-bar" id="progress"></div>
-                <p id="status"></p>
+                <p id="status" style="text-align:center; font-size:14px;"></p>
                 <div class="log" id="log"></div>
             </div>
 
-            <button onclick="showHistory()" style="background:#444;">📜 View History</button>
+            <button class="btn-secondary" onclick="showHistory()">📜 History</button>
         </div>
 
-        <!-- History -->
-        <div id="history-section" class="section" style="display:none;">
+        <!-- History Card -->
+        <div id="history-card" class="card section">
             <h2>Download History</h2>
             <div id="history-list"></div>
-            <button onclick="backToMain()">← Back</button>
+            <button class="btn-secondary" onclick="backToMain()">← Back</button>
         </div>
     </div>
 
