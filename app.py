@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-YouTube Downloader Web Server - Best Version
+YouTube Downloader — Clean & Powerful Web App
 """
 
 import subprocess, sys, os
@@ -9,7 +9,7 @@ def pip(pkg):
     subprocess.check_call([sys.executable, "-m", "pip", "install", pkg, "-q"],
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-# Install dependencies if missing
+# Install dependencies
 for p, i in [("flask", "flask"), ("yt-dlp", "yt_dlp"), ("static-ffmpeg", "static_ffmpeg")]:
     try:
         __import__(i)
@@ -19,32 +19,23 @@ for p, i in [("flask", "flask"), ("yt-dlp", "yt_dlp"), ("static-ffmpeg", "static
 
 from flask import Flask, request, jsonify, Response, send_from_directory
 import yt_dlp, static_ffmpeg, shutil, json, hashlib, datetime
-import threading, uuid, time, socket
+import threading, uuid, re, time, socket
+import webbrowser
 
 static_ffmpeg.add_paths()
 FFMPEG = shutil.which("ffmpeg") or ""
 
 APP_DIR = os.path.join(os.path.expanduser("~"), ".ytdl_app")
-ACCS_FILE = os.path.join(APP_DIR, "accounts.json")
 HIST_FILE = os.path.join(APP_DIR, "history.json")
-DOWNLOAD_DIR = os.path.join(APP_DIR, "downloads")
-
 os.makedirs(APP_DIR, exist_ok=True)
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def jload(p, d):
     try:
-        with open(p, encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return d
+        with open(p) as f: return json.load(f)
+    except: return d
 
 def jsave(p, d):
-    with open(p, "w", encoding='utf-8') as f:
-        json.dump(d, f, indent=2, ensure_ascii=False)
-
-def hashpw(pw): 
-    return hashlib.sha256(pw.encode()).hexdigest()
+    with open(p, "w") as f: json.dump(d, f, indent=2)
 
 def get_local_ip():
     try:
@@ -61,84 +52,21 @@ app = Flask(__name__, static_folder=SCRIPT_DIR, template_folder=SCRIPT_DIR)
 
 _jobs = {}
 
-# ===================== ROUTES =====================
 @app.route("/")
 def index():
     return send_from_directory(SCRIPT_DIR, "index.html")
 
-@app.route("/favicon.svg")
-def favicon():
-    return send_from_directory(SCRIPT_DIR, "favicon.svg")
-
-# ===================== AUTH =====================
-@app.route("/api/register", methods=["POST"])
-def register():
-    d = request.json or {}
-    accs = jload(ACCS_FILE, {})
-    email = d.get("email", "").strip().lower()
-    pw = d.get("password", "")
-    name = d.get("name", "").strip()
-    
-    if not email or "@" not in email:
-        return jsonify(error="Invalid email"), 400
-    if not pw or len(pw) < 6:
-        return jsonify(error="Password too short"), 400
-    if not name:
-        return jsonify(error="Name required"), 400
-    if email in accs:
-        return jsonify(error="Account already exists"), 409
-
-    accs[email] = {
-        "name": name,
-        "pw_hash": hashpw(pw),
-        "joined": str(datetime.date.today()),
-        "method": "email"
-    }
-    jsave(ACCS_FILE, accs)
-    return jsonify(ok=True, name=name, email=email, method="email")
-
-@app.route("/api/login", methods=["POST"])
-def login():
-    d = request.json or {}
-    accs = jload(ACCS_FILE, {})
-    email = d.get("email", "").strip().lower()
-    pw = d.get("password", "")
-    
-    if email not in accs or accs[email].get("pw_hash") != hashpw(pw):
-        return jsonify(error="Invalid email or password"), 401
-    
-    u = accs[email]
-    return jsonify(ok=True, name=u["name"], email=email, method=u.get("method", "email"))
-
-@app.route("/api/google-login", methods=["POST"])
-def google_login():
-    d = request.json or {}
-    accs = jload(ACCS_FILE, {})
-    email = d.get("email", "").strip().lower()
-    
-    if not email or "@" not in email:
-        return jsonify(error="Invalid Gmail"), 400
-    
-    if email not in accs:
-        gname = email.split("@")[0].replace(".", " ").title()
-        accs[email] = {"name": gname, "pw_hash": "", "joined": str(datetime.date.today()), "method": "google"}
-        jsave(ACCS_FILE, accs)
-    
-    u = accs[email]
-    return jsonify(ok=True, name=u["name"], email=email, method="google")
-
-# ===================== DOWNLOAD =====================
 @app.route("/api/download", methods=["POST"])
 def start_download():
     d = request.json or {}
     url = d.get("url", "").strip()
-    user = d.get("user", "")
+    quality = d.get("quality", "Best")
 
     if not url:
         return jsonify(error="No URL provided"), 400
 
     job_id = str(uuid.uuid4())[:8]
-    _jobs[job_id] = {"status":"starting", "progress":0, "speed":"", "eta":"", "log":[], "title":"", "done":False, "filename":""}
+    _jobs[job_id] = {"status":"starting", "progress":0, "speed":"", "eta":"", "log":[], "title":"", "done":False}
 
     def run():
         job = _jobs[job_id]
@@ -146,55 +74,33 @@ def start_download():
             job["status"] = "downloading"
             job["log"].append("Starting download...")
 
-            def progress_hook(d):
-                if d.get('status') == 'downloading':
-                    percent_str = d.get('_percent_str', '0').replace('%', '').strip()
-                    try:
-                        job["progress"] = float(percent_str) / 100
-                    except:
-                        job["progress"] = 0
+            def hook(d):
+                if d['status'] == 'downloading':
+                    p = d.get('_percent_str', '0').replace('%','')
+                    job["progress"] = float(p) / 100 if p.replace('.','').isdigit() else 0
                     job["speed"] = d.get('_speed_str', '')
                     job["eta"] = d.get('_eta_str', '')
 
-            ydl_opts = {
-                'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-                'progress_hooks': [progress_hook],
-                'ffmpeg_location': FFMPEG,
+            opts = {
+                'outtmpl': os.path.join(os.path.expanduser("~"), "Downloads", '%(title)s.%(ext)s'),
+                'progress_hooks': [hook],
                 'merge_output_format': 'mp4',
-                'format': 'bestvideo+bestaudio/best',
-                'noplaylist': False,
+                'format': 'bestvideo+bestaudio/best' if quality == "Best" else f"bestvideo[height<={quality}]+bestaudio/best",
             }
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                job["title"] = info.get('title', 'Unknown Video')
-
+                job["title"] = info.get('title', 'Video')
                 ydl.download([url])
 
-            # Find the downloaded file
-            files = [f for f in os.listdir(DOWNLOAD_DIR) if job["title"][:40] in f or f.startswith(job["title"][:30])]
-            if files:
-                job["filename"] = files[0]
-
             job["status"] = "done"
-            job["progress"] = 1.0
+            job["progress"] = 1
             job["done"] = True
-            job["log"].append("✅ Download completed successfully!")
-
-            # Save to history
-            hist = jload(HIST_FILE, [])
-            hist.append({
-                "user": user,
-                "title": job["title"],
-                "url": url,
-                "filename": job["filename"],
-                "time": str(datetime.datetime.now())
-            })
-            jsave(HIST_FILE, hist[-100:])
+            job["log"].append("✅ Download Completed!")
 
         except Exception as e:
             job["status"] = "error"
-            job["log"].append(f"❌ Error: {str(e)}")
+            job["log"].append(f"Error: {str(e)}")
             job["done"] = True
 
     threading.Thread(target=run, daemon=True).start()
@@ -205,32 +111,22 @@ def progress(job_id):
     def stream():
         while True:
             job = _jobs.get(job_id)
-            if not job:
-                break
+            if not job: break
             yield f"data: {json.dumps(job)}\n\n"
-            if job.get("done"):
-                break
+            if job.get("done"): break
             time.sleep(0.3)
     return Response(stream(), mimetype="text/event-stream")
 
-@app.route("/api/history")
-def get_history():
-    email = request.args.get("user", "")
-    hist = jload(HIST_FILE, [])
-    mine = [h for h in hist if h.get("user") == email]
-    return jsonify(mine[-50:])
-
-@app.route("/downloads/<filename>")
-def download_file(filename):
-    return send_from_directory(DOWNLOAD_DIR, filename, as_attachment=True)
-
 if __name__ == "__main__":
     local_ip = get_local_ip()
-    print("\n" + "="*75)
-    print("   🎥 YouTube Downloader Web App  -  BEST VERSION")
-    print("="*75)
-    print(f"   Local:     http://localhost:5000")
-    print(f"   Network:   http://{local_ip}:5000")
-    print("="*75)
-    print("Keep this terminal open while using the app.\n")
+    print("\n" + "="*60)
+    print("   🎥 YouTube Downloader")
+    print("="*60)
+    print(f"   Local:   http://localhost:5000")
+    print(f"   Network: http://{local_ip}:5000")
+    print("="*60)
+
+    # Auto open browser
+    threading.Timer(1.5, lambda: webbrowser.open("http://localhost:5000")).start()
+    
     app.run(host="0.0.0.0", port=5000, debug=False)
