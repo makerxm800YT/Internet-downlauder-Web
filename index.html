@@ -6,41 +6,34 @@
     <title>YT Downloader</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
-        :root {
-            --primary: #ff0000;
-            --dark: #0a0a0a;
-            --card: #1a1a1a;
-        }
-        * { margin:0; padding:0; box-sizing:border-box; }
+        :root { --red: #ff0000; }
         body {
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a, #1f1f1f);
+            font-family: system-ui, sans-serif;
+            background: #0f0f0f;
             color: #fff;
-            min-height: 100vh;
+            margin: 0;
+            padding: 0;
         }
         header {
             background: #111;
-            padding: 25px;
+            padding: 20px;
             text-align: center;
-            border-bottom: 4px solid var(--primary);
+            border-bottom: 4px solid var(--red);
         }
         .container {
-            max-width: 460px;
-            margin: 40px auto;
-            padding: 0 15px;
+            max-width: 450px;
+            margin: 30px auto;
+            padding: 15px;
         }
         .card {
-            background: var(--card);
+            background: #1a1a1a;
             border-radius: 20px;
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            transition: transform 0.3s;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
         }
-        .card:hover { transform: translateY(-5px); }
-
         input {
             width: 100%;
-            padding: 15px;
+            padding: 14px;
             margin: 10px 0;
             background: #252525;
             border: none;
@@ -48,10 +41,6 @@
             color: white;
             font-size: 16px;
         }
-        input:focus {
-            outline: 2px solid var(--primary);
-        }
-
         button {
             width: 100%;
             padding: 14px;
@@ -61,81 +50,52 @@
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s;
         }
-        button:hover {
-            transform: scale(1.03);
-            box-shadow: 0 5px 15px rgba(255,0,0,0.4);
-        }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: #cc0000; }
+        .btn-red { background: var(--red); color: white; }
+        .btn-red:hover { background: #cc0000; }
         .btn-google { background: #4285F4; color: white; }
-        .btn-secondary { background: #333; color: white; }
-
-        .section { display: none; }
-        .active { display: block; }
-
-        .progress-bar {
-            height: 12px;
-            background: var(--primary);
-            width: 0%;
-            border-radius: 999px;
-            margin: 15px 0;
-            transition: width 0.4s ease;
-        }
-        .log {
-            background: #000;
-            padding: 15px;
-            border-radius: 12px;
-            font-family: monospace;
-            max-height: 200px;
-            overflow-y: auto;
-            font-size: 14px;
-        }
+        .switch { color: #aaa; cursor: pointer; text-align: center; margin-top: 15px; }
+        .switch span { color: var(--red); text-decoration: underline; }
     </style>
 </head>
 <body>
     <header>
         <h1>▶ YT Downloader</h1>
-        <p>Local • Private • Max Quality</p>
+        <p>Local • Private • High Quality</p>
     </header>
 
     <div class="container">
-        <!-- Auth Card -->
-        <div id="auth-card" class="card active">
-            <h2 style="text-align:center; margin-bottom:20px;">Welcome</h2>
-            <input type="email" id="email" placeholder="Email Address">
-            <input type="password" id="password" placeholder="Password">
-            <input type="text" id="name" placeholder="Your Name (Register only)">
+        <div class="card" id="auth-card">
+            <h2 id="auth-title">Login</h2>
 
-            <button class="btn-primary" onclick="login()">Login</button>
-            <button class="btn-primary" onclick="register()">Create Account</button>
+            <input type="email" id="email" placeholder="Email">
+            <input type="password" id="password" placeholder="Password">
+            <input type="text" id="name" placeholder="Full Name (Only for Register)" style="display:none;">
+
+            <button class="btn-red" id="main-btn" onclick="submitAuth()">Login</button>
             <button class="btn-google" onclick="googleLogin()">
                 <i class="fab fa-google"></i> Continue with Google
             </button>
+
+            <div class="switch" id="switch-text">
+                Don't have an account? <span onclick="toggleMode()">Register</span>
+            </div>
         </div>
 
-        <!-- Main Download Card -->
-        <div id="main-card" class="card section">
-            <h2>Download Video</h2>
-            <input type="text" id="url" placeholder="Paste YouTube or Shorts link here...">
-            <button class="btn-primary" onclick="startDownload()">⬇ Start Download</button>
+        <!-- Main App -->
+        <div class="card" id="main-app" style="display:none;">
+            <h2>Download Video / Shorts</h2>
+            <input type="text" id="url" placeholder="Paste YouTube link here...">
+            <button class="btn-red" onclick="startDownload()">⬇ Start Download</button>
 
             <div id="progress-area" style="display:none; margin-top:20px;">
-                <h3 id="title" style="margin-bottom:10px;"></h3>
-                <div class="progress-bar" id="progress"></div>
-                <p id="status" style="text-align:center; font-size:14px;"></p>
-                <div class="log" id="log"></div>
+                <h3 id="title"></h3>
+                <div class="progress-bar" id="progress" style="height:12px;background:#ff0000;width:0%;border-radius:999px;margin:15px 0;"></div>
+                <p id="status"></p>
+                <div class="log" id="log" style="background:#000;padding:15px;border-radius:12px;max-height:200px;overflow:auto;"></div>
             </div>
 
-            <button class="btn-secondary" onclick="showHistory()">📜 History</button>
-        </div>
-
-        <!-- History Card -->
-        <div id="history-card" class="card section">
-            <h2>Download History</h2>
-            <div id="history-list"></div>
-            <button class="btn-secondary" onclick="backToMain()">← Back</button>
+            <button onclick="showHistory()" style="background:#333;margin-top:15px;">📜 History</button>
         </div>
     </div>
 
