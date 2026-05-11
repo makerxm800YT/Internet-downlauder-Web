@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-YouTube Downloader Web Server
-Run: python app.py
+YouTube Downloader Web Server - FIXED & WORKING
 """
 
 import subprocess, sys, os
@@ -10,7 +9,7 @@ def pip(pkg):
     subprocess.check_call([sys.executable, "-m", "pip", "install", pkg, "-q"],
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-# Install dependencies
+# Install dependencies if missing
 for p, i in [("flask", "flask"), ("yt-dlp", "yt_dlp"), ("static-ffmpeg", "static_ffmpeg")]:
     try:
         __import__(i)
@@ -18,9 +17,9 @@ for p, i in [("flask", "flask"), ("yt-dlp", "yt_dlp"), ("static-ffmpeg", "static
         print(f"Installing {p}...")
         pip(p)
 
-from flask import Flask, request, jsonify, Response, send_from_directory
+from flask import Flask, request, jsonify, Response, send_from_directory, send_file
 import yt_dlp, static_ffmpeg, shutil, json, hashlib, datetime
-import threading, uuid, re, time, socket
+import threading, uuid, time, socket, re
 
 static_ffmpeg.add_paths()
 FFMPEG = shutil.which("ffmpeg") or ""
@@ -28,7 +27,10 @@ FFMPEG = shutil.which("ffmpeg") or ""
 APP_DIR = os.path.join(os.path.expanduser("~"), ".ytdl_app")
 ACCS_FILE = os.path.join(APP_DIR, "accounts.json")
 HIST_FILE = os.path.join(APP_DIR, "history.json")
+DOWNLOAD_DIR = os.path.join(APP_DIR, "downloads")
+
 os.makedirs(APP_DIR, exist_ok=True)
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def jload(p, d):
     try:
@@ -56,6 +58,7 @@ app = Flask(__name__, static_folder=SCRIPT_DIR, template_folder=SCRIPT_DIR)
 
 _jobs = {}
 
+# ===================== ROUTES =====================
 @app.route("/")
 def index():
     return send_from_directory(SCRIPT_DIR, "index.html")
@@ -132,12 +135,60 @@ def start_download():
         return jsonify(error="No URL provided"), 400
 
     job_id = str(uuid.uuid4())[:8]
-    _jobs[job_id] = {"status":"starting", "progress":0, "speed":"", "eta":"", "log":[], "title":"", "done":False}
+    _jobs[job_id] = {"status":"starting", "progress":0, "speed":"", "eta":"", "log":[], "title":"", "done":False, "filename":""}
 
     def run():
-        # ... (your existing download logic with yt-dlp)
-        # I kept it short for now - let me know if you want full version
-        pass  # I'll give full version in next update if needed
+        job = _jobs[job_id]
+        try:
+            job["status"] = "downloading"
+            job["log"].append("Starting download...")
+
+            def progress_hook(d):
+                if d['status'] == 'downloading':
+                    job["progress"] = float(d.get('_percent_str', '0').replace('%','')) / 100
+                    job["speed"] = d.get('_speed_str', '')
+                    job["eta"] = d.get('_eta_str', '')
+
+            ydl_opts = {
+                'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
+                'progress_hooks': [progress_hook],
+                'ffmpeg_location': FFMPEG,
+                'merge_output_format': 'mp4',
+                'format': 'bestvideo+bestaudio/best',
+                'noplaylist': False,
+            }
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                job["title"] = info.get('title', 'Unknown')
+
+                ydl.download([url])
+
+            # Find the downloaded file
+            files = [f for f in os.listdir(DOWNLOAD_DIR) if f.startswith(job["title"][:30])]
+            if files:
+                job["filename"] = files[0]
+
+            job["status"] = "done"
+            job["progress"] = 1.0
+            job["done"] = True
+            job["log"].append("Download completed!")
+
+            # Save to history
+            hist = jload(HIST_FILE, [])
+            hist.append({
+                "user": user,
+                "title": job["title"],
+                "url": url,
+                "filename": job["filename"],
+                "time": str(datetime.datetime.now())
+            })
+            jsave(HIST_FILE, hist[-100:])
+
+        except Exception as e:
+            job["status"] = "error"
+            job["log"].append(f"Error: {str(e)}")
+            job["done"] = True
 
     threading.Thread(target=run, daemon=True).start()
     return jsonify(job_id=job_id)
@@ -150,7 +201,7 @@ def progress(job_id):
             if not job: break
             yield f"data: {json.dumps(job)}\n\n"
             if job.get("done"): break
-            time.sleep(0.4)
+            time.sleep(0.3)
     return Response(stream(), mimetype="text/event-stream")
 
 @app.route("/api/history")
@@ -160,12 +211,17 @@ def get_history():
     mine = [h for h in hist if h.get("user") == email]
     return jsonify(mine[-50:])
 
+@app.route("/downloads/<filename>")
+def download_file(filename):
+    return send_from_directory(DOWNLOAD_DIR, filename, as_attachment=True)
+
 if __name__ == "__main__":
     local_ip = get_local_ip()
-    print("\n" + "="*60)
-    print("   YouTube Downloader Web Server")
-    print("="*60)
-    print(f"   Local:    http://localhost:5000")
-    print(f"   Network:  http://{local_ip}:5000")
-    print("="*60)
+    print("\n" + "="*70)
+    print("   🎥 YouTube Downloader Web App  -  FIXED & READY")
+    print("="*70)
+    print(f"   Local:     http://localhost:5000")
+    print(f"   Network:   http://{local_ip}:5000")
+    print("="*70)
+    print("Keep this terminal open while using the app.\n")
     app.run(host="0.0.0.0", port=5000, debug=False)
