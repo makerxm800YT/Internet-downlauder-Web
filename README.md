@@ -1,85 +1,54 @@
-# ▶ YouTube Downloader
+# 🚀 StreamVault JS — Free & Unlimited YT Downloader
 
 <p align="center">
   <img src="favicon.svg" width="80" alt="Logo"/>
 </p>
 
 <p align="center">
-  <strong>Free · Unlimited · With Sound · Accounts · History · Web UI</strong>
+  <strong>No Python · Unlimited 4K · High Speed · Privacy Focused</strong>
 </p>
 
-<p align="center">
-  A beautiful, modern local web app for downloading YouTube videos at maximum quality.<br/>
-  Runs in your browser. No subscription. No limits. No ads. Forever free.
-</p>
+StreamVault is a premium-style web interface for downloading YouTube videos. Unlike other tools, it uses a **Node.js streaming engine** to provide unlimited downloads without taking up server space or requiring complex Python setups.
 
 ---
 
 ## ✨ Features
 
-| | Feature | Details |
-|---|---|---|
-| 🔐 | **Accounts** | Sign in with Email/Password or Google — your history saved per account |
-| ⬇ | **Max Quality** | Up to 4K — video and audio merged automatically |
-| 🔊 | **Sound Always Works** | FFmpeg is bundled — zero manual setup |
-| 🎵 | **Audio Only** | MP3 / M4A at 320kbps |
-| 📋 | **Playlists** | Download full playlists in one click |
-| 🕘 | **History** | Every download logged — re-download with one click |
-| ⭐ | **Rate Us** | Built-in star rating system |
-| 🔄 | **Self-Updating** | Update yt-dlp from inside the app |
-| 🌐 | **Beautiful Web UI** | Runs in your browser — looks like a real app |
+| Feature | Details |
+| :--- | :--- |
+| 🎥 **4K Ultra HD** | Support for 2160p, 1440p, 1080p, and more |
+| ⚡ **No-Python Engine** | Powered by Node.js for faster, lighter execution |
+| 🎵 **MP3 Converter** | One-click high-quality audio extraction |
+| 🔓 **Truly Unlimited** | No daily limits, no subscriptions, no ads |
+| 🛡️ **Private** | Downloads go directly from YT to your browser |
+| 🎨 **Modern UI** | Glassmorphism design with sleek animations |
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Windows)
 
-### Windows (2 steps)
-
-1. Install Python → **[python.org/downloads](https://python.org/downloads)**  
-   ⚠️ Check **"Add Python to PATH"** during install
-2. Double-click **`START - Click Here.bat`**
-
-The app installs everything and opens in your browser automatically. ✅
-
-### Mac / Linux
-
-```bash
-pip install flask yt-dlp static-ffmpeg
-python app.py
-```
-Then open **http://localhost:5000**
+1. **Install Node.js** Download and install from [nodejs.org](https://nodejs.org/) (Choose the "LTS" version).
+   
+2. **Launch the App** Double-click **`START - Click Here.bat`**.  
+   *The script will automatically install the engine and open the site in your browser.* ✅
 
 ---
 
-## 📁 Files
+## 🛠 Tech Stack
 
-```
-📦 youtube-downloader/
- ┣ 📄 app.py                  ← Flask backend (handles downloading)
- ┣ 📄 index.html              ← Web UI (opens in your browser)
- ┣ 🖼 favicon.svg             ← App icon
- ┣ 📄 START - Click Here.bat  ← Windows launcher
- ┗ 📄 README.md
-```
+- **Backend:** Node.js + Express
+- **Downloader:** `@distube/ytdl-core` (The most stable JS downloader)
+- **Frontend:** HTML5 / Tailwind CSS / Animate.css
+- **Style:** Glassmorphism "Steel Works" Redesign
 
 ---
 
-## 🔒 Privacy
+## 📁 File Structure
 
-Everything is **100% local** — accounts, history, downloads.  
-Nothing is sent to any server. Your data stays on your machine in `~/.ytdl_app/`.
-
----
-
-## 🛠 Built With
-
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — YouTube engine
-- [Flask](https://flask.palletsprojects.com/) — Local web server
-- [static-ffmpeg](https://pypi.org/project/static-ffmpeg/) — Bundled audio merging
-- Vanilla HTML/CSS/JS — No frameworks, no bloat
-
----
-
-## 📄 License
-
-MIT — free to use, fork, and share.
+```text
+📦 Youtube-Downlauder-site/
+ ┣ 📄 server.js               ← Node.js Backend (Unlimited Engine)
+ ┣ 📄 index.html              ← Modern Web UI
+ ┣ 🖼 favicon.svg             ← App Logo
+ ┣ 📄 START - Click Here.bat  ← Auto-installer & Launcher
+ ┗ 📄 package.json            ← Dependencies (Auto-generated)
