@@ -4,101 +4,74 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YT Downloader</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
-        :root { --red: #ff0000; }
-        body {
-            font-family: system-ui, sans-serif;
-            background: #0f0f0f;
-            color: #fff;
-            margin: 0;
-            padding: 0;
-        }
-        header {
-            background: #111;
-            padding: 20px;
-            text-align: center;
-            border-bottom: 4px solid var(--red);
-        }
-        .container {
-            max-width: 450px;
-            margin: 30px auto;
-            padding: 15px;
-        }
-        .card {
-            background: #1a1a1a;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-        }
-        input {
-            width: 100%;
-            padding: 14px;
-            margin: 10px 0;
-            background: #252525;
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-size: 16px;
-        }
-        button {
-            width: 100%;
-            padding: 14px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .btn-red { background: var(--red); color: white; }
-        .btn-red:hover { background: #cc0000; }
-        .btn-google { background: #4285F4; color: white; }
-        .switch { color: #aaa; cursor: pointer; text-align: center; margin-top: 15px; }
-        .switch span { color: var(--red); text-decoration: underline; }
+        body { font-family: system-ui; background:#0f0f0f; color:white; text-align:center; padding:20px; }
+        .card { max-width:500px; margin:40px auto; background:#1f1f1f; padding:30px; border-radius:20px; }
+        input { width:100%; padding:15px; margin:15px 0; border-radius:12px; border:none; background:#333; color:white; font-size:16px; }
+        button { width:100%; padding:15px; margin:10px 0; border:none; border-radius:12px; font-size:17px; cursor:pointer; }
+        .btn-red { background:#ff0000; }
+        .progress { height:10px; background:#ff0000; width:0%; margin:15px 0; border-radius:999px; }
     </style>
 </head>
 <body>
-    <header>
-        <h1>▶ YT Downloader</h1>
-        <p>Local • Private • High Quality</p>
-    </header>
+    <div class="card">
+        <h1>▶ YouTube Downloader</h1>
+        <p>Local • Private • Fast</p>
 
-    <div class="container">
-        <div class="card" id="auth-card">
-            <h2 id="auth-title">Login</h2>
+        <input type="text" id="url" placeholder="Paste YouTube or Shorts URL">
+        
+        <button class="btn-red" onclick="download()">⬇ Download (Best Quality)</button>
+        <button onclick="downloadAudio()">🎵 Download Audio Only (MP3)</button>
 
-            <input type="email" id="email" placeholder="Email">
-            <input type="password" id="password" placeholder="Password">
-            <input type="text" id="name" placeholder="Full Name (Only for Register)" style="display:none;">
-
-            <button class="btn-red" id="main-btn" onclick="submitAuth()">Login</button>
-            <button class="btn-google" onclick="googleLogin()">
-                <i class="fab fa-google"></i> Continue with Google
-            </button>
-
-            <div class="switch" id="switch-text">
-                Don't have an account? <span onclick="toggleMode()">Register</span>
-            </div>
-        </div>
-
-        <!-- Main App -->
-        <div class="card" id="main-app" style="display:none;">
-            <h2>Download Video / Shorts</h2>
-            <input type="text" id="url" placeholder="Paste YouTube link here...">
-            <button class="btn-red" onclick="startDownload()">⬇ Start Download</button>
-
-            <div id="progress-area" style="display:none; margin-top:20px;">
-                <h3 id="title"></h3>
-                <div class="progress-bar" id="progress" style="height:12px;background:#ff0000;width:0%;border-radius:999px;margin:15px 0;"></div>
-                <p id="status"></p>
-                <div class="log" id="log" style="background:#000;padding:15px;border-radius:12px;max-height:200px;overflow:auto;"></div>
-            </div>
-
-            <button onclick="showHistory()" style="background:#333;margin-top:15px;">📜 History</button>
+        <div id="progress-area" style="display:none; margin-top:20px;">
+            <h3 id="title"></h3>
+            <div class="progress" id="progress"></div>
+            <p id="status"></p>
+            <div id="log" style="text-align:left; background:#000; padding:10px; border-radius:10px; max-height:200px; overflow:auto; font-size:14px;"></div>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script>
+        async function download() {
+            const url = document.getElementById("url").value.trim();
+            if (!url) return alert("Paste a URL first!");
+
+            const res = await fetch("/api/download", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({url, quality: "Best"})
+            });
+            const data = await res.json();
+            if (data.job_id) watchProgress(data.job_id);
+        }
+
+        async function downloadAudio() {
+            const url = document.getElementById("url").value.trim();
+            if (!url) return alert("Paste a URL first!");
+
+            const res = await fetch("/api/download", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({url, quality: "Best"})
+            });
+            const data = await res.json();
+            if (data.job_id) watchProgress(data.job_id);
+        }
+
+        function watchProgress(job_id) {
+            document.getElementById("progress-area").style.display = "block";
+            const evt = new EventSource(`/api/progress/${job_id}`);
+            evt.onmessage = e => {
+                const job = JSON.parse(e.data);
+                document.getElementById("title").textContent = job.title || "Downloading...";
+                document.getElementById("progress").style.width = job.progress * 100 + "%";
+                document.getElementById("status").textContent = `${job.status} ${job.speed} ${job.eta}`;
+                
+                const log = document.getElementById("log");
+                log.innerHTML = job.log.map(l => `<div>${l}</div>`).join('');
+                log.scrollTop = log.scrollHeight;
+            };
+        }
+    </script>
 </body>
 </html>
