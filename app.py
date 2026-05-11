@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-YouTube Downloader Web Server - FIXED & WORKING
+YouTube Downloader Web Server - Best Version
 """
 
 import subprocess, sys, os
@@ -17,9 +17,9 @@ for p, i in [("flask", "flask"), ("yt-dlp", "yt_dlp"), ("static-ffmpeg", "static
         print(f"Installing {p}...")
         pip(p)
 
-from flask import Flask, request, jsonify, Response, send_from_directory, send_file
+from flask import Flask, request, jsonify, Response, send_from_directory
 import yt_dlp, static_ffmpeg, shutil, json, hashlib, datetime
-import threading, uuid, time, socket, re
+import threading, uuid, time, socket
 
 static_ffmpeg.add_paths()
 FFMPEG = shutil.which("ffmpeg") or ""
@@ -34,11 +34,14 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def jload(p, d):
     try:
-        with open(p) as f: return json.load(f)
-    except: return d
+        with open(p, encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return d
 
 def jsave(p, d):
-    with open(p, "w") as f: json.dump(d, f, indent=2)
+    with open(p, "w", encoding='utf-8') as f:
+        json.dump(d, f, indent=2, ensure_ascii=False)
 
 def hashpw(pw): 
     return hashlib.sha256(pw.encode()).hexdigest()
@@ -144,8 +147,12 @@ def start_download():
             job["log"].append("Starting download...")
 
             def progress_hook(d):
-                if d['status'] == 'downloading':
-                    job["progress"] = float(d.get('_percent_str', '0').replace('%','')) / 100
+                if d.get('status') == 'downloading':
+                    percent_str = d.get('_percent_str', '0').replace('%', '').strip()
+                    try:
+                        job["progress"] = float(percent_str) / 100
+                    except:
+                        job["progress"] = 0
                     job["speed"] = d.get('_speed_str', '')
                     job["eta"] = d.get('_eta_str', '')
 
@@ -160,19 +167,19 @@ def start_download():
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                job["title"] = info.get('title', 'Unknown')
+                job["title"] = info.get('title', 'Unknown Video')
 
                 ydl.download([url])
 
             # Find the downloaded file
-            files = [f for f in os.listdir(DOWNLOAD_DIR) if f.startswith(job["title"][:30])]
+            files = [f for f in os.listdir(DOWNLOAD_DIR) if job["title"][:40] in f or f.startswith(job["title"][:30])]
             if files:
                 job["filename"] = files[0]
 
             job["status"] = "done"
             job["progress"] = 1.0
             job["done"] = True
-            job["log"].append("Download completed!")
+            job["log"].append("✅ Download completed successfully!")
 
             # Save to history
             hist = jload(HIST_FILE, [])
@@ -187,7 +194,7 @@ def start_download():
 
         except Exception as e:
             job["status"] = "error"
-            job["log"].append(f"Error: {str(e)}")
+            job["log"].append(f"❌ Error: {str(e)}")
             job["done"] = True
 
     threading.Thread(target=run, daemon=True).start()
@@ -198,9 +205,11 @@ def progress(job_id):
     def stream():
         while True:
             job = _jobs.get(job_id)
-            if not job: break
+            if not job:
+                break
             yield f"data: {json.dumps(job)}\n\n"
-            if job.get("done"): break
+            if job.get("done"):
+                break
             time.sleep(0.3)
     return Response(stream(), mimetype="text/event-stream")
 
@@ -217,11 +226,11 @@ def download_file(filename):
 
 if __name__ == "__main__":
     local_ip = get_local_ip()
-    print("\n" + "="*70)
-    print("   🎥 YouTube Downloader Web App  -  FIXED & READY")
-    print("="*70)
+    print("\n" + "="*75)
+    print("   🎥 YouTube Downloader Web App  -  BEST VERSION")
+    print("="*75)
     print(f"   Local:     http://localhost:5000")
     print(f"   Network:   http://{local_ip}:5000")
-    print("="*70)
+    print("="*75)
     print("Keep this terminal open while using the app.\n")
     app.run(host="0.0.0.0", port=5000, debug=False)
