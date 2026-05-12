@@ -1,38 +1,34 @@
 @echo off
-title StreamVault JS - Unlimited Downloader
-color 0A
+title StreamVault JS - 4K Engine
+color 0B
 
 echo ========================================
-echo    StreamVault JS - Starting Engine
+echo    StreamVault JS - Fixing Engine...
 echo ========================================
 
-:: 1. Check for Node.js
+:: Check for Node
 node -v >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Node.js is not installed!
-    echo Please install it from: https://nodejs.org/
+    echo [ERROR] Node.js missing!
     pause
     exit
 )
 
-:: 2. Check for package.json, if not exists, create it
-if not exist "package.json" (
-    echo [1/3] Initializing Project...
-    call npm init -y >nul
+:: Auto-Download the yt-dlp tool if missing
+if not exist "yt-dlp.exe" (
+    echo [1/3] Downloading High-Speed Engine...
+    powershell -Command "Invoke-WebRequest https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe -OutFile yt-dlp.exe"
 )
 
-:: 3. Install Dependencies (The "Unlimited" Engine)
-echo [2/3] Installing Dependencies (Express + YTDL)...
-call npm install express @distube/ytdl-core cors --quiet
+echo [2/3] Updating JS Libraries...
+call npm init -y >nul
+call npm install express cors --quiet
 
-:: 4. Launch Browser and Server
-echo [3/3] Launching Web Interface...
+echo [3/3] Launching Web UI...
 start http://localhost:3000
 
 echo ----------------------------------------
-echo SERVER IS LIVE AT http://localhost:3000
-echo KEEP THIS WINDOW OPEN TO DOWNLOAD
+echo SERVER LIVE - NO MORE FORMAT ERRORS
 echo ----------------------------------------
 node server.js
-
 pause
