@@ -1,105 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>StreamVault Desktop</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background: #0a0a0a; color: white; font-family: 'Segoe UI', sans-serif; }
-        .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
-        .step-label { font-size: 10px; font-weight: 800; color: #666; letter-spacing: 1px; margin-bottom: 8px; display: block; }
-        select, input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 14px; border-radius: 12px; width: 100%; outline: none; }
-        select:focus, input:focus { border-color: #ff0000; }
-        .btn-main { background: #ff0000; font-weight: 900; letter-spacing: -0.5px; transition: 0.2s; }
-        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255,0,0,0.3); }
-    </style>
-</head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<script>
+    async function pasteLink() {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('url').value = text;
+    }
 
-    <div class="glass max-w-lg w-full p-10 rounded-[2.5rem] shadow-2xl">
-        <header class="text-center mb-10">
-            <div class="bg-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <img src="favicon.svg" class="w-8">
-            </div>
-            <h1 class="text-3xl font-black italic">STREAM<span class="text-red-600">VAULT</span></h1>
-            <p class="text-gray-500 text-[10px] tracking-[4px] uppercase mt-1">Native Desktop Edition</p>
-        </header>
+    function runDownload() {
+        const url = document.getElementById('url').value;
+        const quality = document.getElementById('quality').value;
+        const format = document.getElementById('format').value;
+        const ext = document.getElementById('ext').value;
 
-        <div class="space-y-6">
-            <div class="relative">
-                <span class="step-label">STEP 1: VIDEO LINK</span>
-                <div class="flex gap-2">
-                    <input type="text" id="url" placeholder="Paste link...">
-                    <button onclick="pasteLink()" class="bg-white/10 hover:bg-white/20 px-4 rounded-12 text-sm font-bold transition">PASTE</button>
-                </div>
-            </div>
+        if(!url) return alert("Enter a URL first!");
 
-            <div class="grid grid-cols-3 gap-3">
-                <div>
-                    <span class="step-label">FORMAT</span>
-                    <select id="format">
-                        <option value="video">Video</option>
-                        <option value="audio">Audio</option>
-                    </select>
-                </div>
-                <div>
-                    <span class="step-label">QUALITY</span>
-                    <select id="quality">
-                        <option value="2160">4K</option>
-                        <option value="1440">2K</option>
-                        <option value="1080" selected>1080p</option>
-                        <option value="720">720p</option>
-                        <option value="480">480p</option>
-                    </select>
-                </div>
-                <div>
-                    <span class="step-label">EXTENSION</span>
-                    <select id="ext">
-                        <option value="mp4">MP4</option>
-                        <option value="mkv">MKV</option>
-                        <option value="webm">WebM</option>
-                    </select>
-                </div>
-            </div>
+        // Show loading state
+        const btn = document.querySelector('.btn-main');
+        const status = document.getElementById('status');
+        
+        btn.disabled = true;
+        btn.innerText = "🛠️ PROCESSING AUDIO/VIDEO...";
+        status.classList.remove('hidden');
+        status.innerHTML = '<p class="text-xs font-bold text-red-500 animate-pulse">FIXING SOUND & MERGING 4K... PLEASE WAIT.</p>';
 
-            <button onclick="runDownload()" class="btn-main w-full py-5 rounded-2xl text-xl italic uppercase">
-                🚀 Start Download
-            </button>
-        </div>
+        const query = `url=${encodeURIComponent(url)}&quality=${quality}&format=${format}&ext=${ext}`;
+        
+        // This will trigger the download once the server finishes merging
+        window.location.href = `/download?${query}`;
 
-        <div id="status" class="hidden mt-8 text-center py-4 bg-black/40 rounded-2xl border border-white/5">
-            <p class="text-xs font-bold text-red-500 animate-pulse">SYSTEM: INITIALIZING DOWNLOAD...</p>
-        </div>
-    </div>
-
-    <script>
-        async function pasteLink() {
-            try {
-                const text = await navigator.clipboard.readText();
-                document.getElementById('url').value = text;
-            } catch (err) {
-                alert("Please allow clipboard access or paste manually.");
-            }
-        }
-
-        function runDownload() {
-            const url = document.getElementById('url').value;
-            const quality = document.getElementById('quality').value;
-            const format = document.getElementById('format').value;
-            const ext = document.getElementById('ext').value;
-
-            if(!url) return alert("Enter a URL first!");
-
-            document.getElementById('status').classList.remove('hidden');
-            
-            // Generate Download URL
-            const query = `url=${encodeURIComponent(url)}&quality=${quality}&format=${format}&ext=${ext}`;
-            window.location.href = `/download?${query}`;
-
-            setTimeout(() => {
-                document.getElementById('status').innerHTML = '<p class="text-xs font-bold text-green-500">✅ TRANSFERRING TO FOLDER</p>';
-            }, 4000);
-        }
-    </script>
-</body>
-</html>
+        // Reset button after a delay
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerText = "🚀 START DOWNLOAD";
+        }, 10000);
+    }
+</script>
