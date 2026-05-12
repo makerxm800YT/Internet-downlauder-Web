@@ -1,37 +1,64 @@
 const express = require('express');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const cors = require('cors');
 const app = express();
 
+app.use(cors());
 app.use(express.static('.'));
 
-const dlDir = path.join(__dirname, 'downloads');
+const dlDir = path.join(__dirname, 'temp_downloads');
 if (!fs.existsSync(dlDir)) fs.mkdirSync(dlDir);
 
-app.get('/download', (req, res) => {
-    const { url, quality, ext } = req.query;
-    const finalFile = path.join(dlDir, `file_${Date.now()}.${ext}`);
+app.get('/download', async (req, res) => {
+    const { url, quality, format, ext } = req.query;
+    if (!url) return res.status(400).send('URL required');
 
-    // This command FORCES yt-dlp to use the ffmpeg.exe we just downloaded
-    const ytdl = spawn('./yt-dlp.exe', [
-        '--ffmpeg-location', './ffmpeg.exe',
-        '-f', `bestvideo[height<=${quality}]+bestaudio/best`,
-        '--merge-output-format', ext,
-        '-o', finalFile,
-        url
-    ]);
+    try {
+        // 1. Get the Real Title (FR Name)
+        console.log("🔍 Fetching real video title...");
+        const titleBuffer = execSync(`./yt-dlp.exe --get-title --no-playlist "${url}"`);
+        const rawTitle = titleBuffer.toString().trim();
+        // Clean the title so Windows/Mac can save it safely
+        const cleanTitle = rawTitle.replace(/[/\\?%*:|"<>]/g, '-');
+        
+        const finalFilename = `${cleanTitle}.${ext || 'mp4'}`;
+        const tempFilePath = path.join(dlDir, `dl_${Date.now()}.${ext || 'mp4'}`);
 
-    ytdl.on('close', (code) => {
-        if (code === 0) {
-            res.download(finalFile, () => {
-                // Delete temp file after 1 minute to save space
-                setTimeout(() => { if(fs.existsSync(finalFile)) fs.unlinkSync(finalFile); }, 60000);
-            });
-        } else {
-            res.status(500).send("Audio Merge Failed. Run the .bat again!");
-        }
-    });
+        console.log(`🚀 Downloading: ${cleanTitle}`);
+
+        // 2. Start the download with Audio Merge
+        const ytdl = spawn('./yt-dlp.exe', [
+            '--ffmpeg-location', './ffmpeg.exe',
+            '-f', format === 'audio' ? 'bestaudio/best' : `bestvideo[height<=${quality}]+bestaudio/best`,
+            '--merge-output-format', ext || 'mp4',
+            '--no-playlist',
+            '-o', tempFilePath,
+            url
+        ]);
+
+        ytdl.on('close', (code) => {
+            if (code === 0) {
+                // 3. Send the file with the REAL NAME
+                res.download(tempFilePath, finalFilename, (err) => {
+                    if (!err) {
+                        // Clean up temp file after 2 minutes
+                        setTimeout(() => {
+                            if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+                        }, 120000);
+                    }
+                });
+            } else {
+                res.status(500).send("Engine Error. Check if ffmpeg.exe exists.");
+            }
+        });
+
+    } catch (error) {
+        console.error("Name Detection Error:", error);
+        res.status(500).send("Could not detect video name.");
+    }
 });
 
-app.listen(3000, () => console.log("Engine Online at http://localhost:3000"));
+const PORT = 3000;
+app.listen(PORT, () => console.log(`🚀 StreamVault Live at http://localhost:${PORT}`));
