@@ -1,29 +1,1089 @@
-function startDownload() {
-    const url = document.getElementById('url').value;
-    const q = document.getElementById('quality').value;
-    const f = document.getElementById('format').value;
-    const e = document.getElementById('ext').value;
-
-    if(!url) return alert("Enter a URL first!");
-
-    const btn = document.getElementById('dl-btn');
-    const status = document.getElementById('status');
-    const statusText = document.getElementById('status-text');
-
-    // UI Transformation
-    btn.disabled = true;
-    btn.innerText = "🔍 DETECTING REAL NAME...";
-    status.classList.remove('hidden');
-
-    // Redirect to download
-    window.location.href = `/download?url=${encodeURIComponent(url)}&quality=${q}&format=${f}&ext=${e}`;
-
-    // Update status messages every few seconds
-    setTimeout(() => { btn.innerText = "⚡ MERGING AUDIO/VIDEO..."; }, 3000);
-    setTimeout(() => { 
-        btn.innerText = "🚀 START DOWNLOAD"; 
-        btn.disabled = false;
-        statusText.innerText = "✅ SENT TO BROWSER!";
-        statusText.classList.replace('text-red-500', 'text-green-500');
-    }, 15000);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>YTDL — YouTube Downloader</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ── Reset ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:       #080808;
+  --bg2:      #0d0d0d;
+  --bg3:      #111;
+  --card:     #141414;
+  --card2:    #1a1a1a;
+  --s3:       #202020;
+  --s4:       #2a2a2a;
+  --bdr:      #222;
+  --bdr2:     #2d2d2d;
+  --red:      #ff0000;
+  --red2:     #cc0000;
+  --redglow:  rgba(255,0,0,0.15);
+  --redsoft:  rgba(255,0,0,0.08);
+  --grn:      #00e676;
+  --ylw:      #ffab40;
+  --blue:     #448aff;
+  --fg:       #f5f5f5;
+  --fg2:      #888;
+  --fg3:      #444;
+  --fg4:      #222;
+  --r:        12px;
+  --rpill:    999px;
 }
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--fg);overflow:hidden}
+::selection{background:var(--red);color:#fff}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--s4);border-radius:var(--rpill)}
+
+/* ── Animated bg grid ── */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,0,0,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,0,0,0.03) 1px,transparent 1px);
+  background-size:40px 40px;
+  mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,black 0%,transparent 100%);
+}
+
+/* ── Glow blob ── */
+.blob{
+  position:fixed;width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,0,0,0.06) 0%,transparent 70%);
+  pointer-events:none;z-index:0;top:-200px;left:50%;transform:translateX(-50%);
+  animation:blobpulse 6s ease-in-out infinite;
+}
+@keyframes blobpulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.1)}}
+
+/* ── App shell ── */
+#app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column}
+
+/* ══════════════════════════════════════════════════════════
+   LOGIN
+══════════════════════════════════════════════════════════ */
+#login-screen{
+  position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+}
+.login-wrap{
+  width:400px;animation:loginIn .5s cubic-bezier(.16,1,.3,1);
+}
+@keyframes loginIn{from{opacity:0;transform:translateY(30px) scale(.97)}to{opacity:1;transform:none}}
+
+/* Logo */
+.login-logo{text-align:center;margin-bottom:32px}
+.logo-mark{
+  display:inline-flex;align-items:center;gap:10px;
+  margin-bottom:8px;
+}
+.logo-icon{
+  width:44px;height:44px;background:var(--red);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;position:relative;
+  box-shadow:0 0 30px rgba(255,0,0,0.4);
+}
+.logo-icon::after{
+  content:"";position:absolute;
+  border-left:14px solid transparent;border-right:0 solid transparent;
+  border-top:9px solid transparent;border-bottom:9px solid transparent;
+  border-left-color:#fff;left:16px;
+}
+.logo-title{font-family:'Unbounded',sans-serif;font-size:20px;color:var(--fg)}
+.logo-sub{font-size:12px;color:var(--fg3);letter-spacing:.05em;margin-top:4px}
+
+/* Auth card */
+.auth-card{
+  background:var(--card);border:1px solid var(--bdr2);
+  border-radius:18px;padding:28px 28px 24px;
+  box-shadow:0 24px 80px rgba(0,0,0,.6);
+}
+.auth-heading{font-family:'Unbounded',sans-serif;font-size:15px;margin-bottom:22px;color:var(--fg)}
+
+.field{margin-bottom:12px}
+.field-label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+             color:var(--fg3);margin-bottom:5px;display:block}
+.field-input{
+  width:100%;background:var(--s3);border:1px solid var(--bdr2);border-radius:10px;
+  padding:10px 13px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--fg);
+  outline:none;transition:border .18s,box-shadow .18s;
+}
+.field-input:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft)}
+.field-input::placeholder{color:var(--fg3)}
+
+.auth-err{font-size:11px;color:var(--red);min-height:16px;margin:6px 0 8px;display:none}
+.auth-err.show{display:block}
+
+.btn-red{
+  width:100%;padding:12px;border:none;border-radius:var(--rpill);
+  background:var(--red);color:#fff;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .18s;margin-top:4px;
+  box-shadow:0 4px 20px rgba(255,0,0,0.3);
+}
+.btn-red:hover{background:#ff1a1a;box-shadow:0 6px 30px rgba(255,0,0,.5);transform:translateY(-1px)}
+.btn-red:active{transform:none}
+
+.or-row{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--fg3);font-size:11px}
+.or-row::before,.or-row::after{content:"";flex:1;height:1px;background:var(--bdr2)}
+
+.btn-google{
+  width:100%;padding:10px;border:1px solid var(--bdr2);border-radius:var(--rpill);
+  background:var(--s3);color:var(--fg);
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-google:hover{background:var(--s4);border-color:var(--blue)}
+.g-icon{font-size:15px}
+
+.auth-switch{text-align:center;margin-top:16px;font-size:12px;color:var(--fg3)}
+.auth-switch a{color:var(--red);cursor:pointer;font-weight:600}
+.auth-switch a:hover{text-decoration:underline}
+
+/* ══════════════════════════════════════════════════════════
+   MODALS
+══════════════════════════════════════════════════════════ */
+.modal-bg{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+}
+.modal{
+  background:var(--card);border:1px solid var(--bdr2);border-radius:16px;
+  padding:26px 24px 20px;width:340px;box-shadow:0 24px 80px rgba(0,0,0,.6);
+  animation:loginIn .3s cubic-bezier(.16,1,.3,1);
+}
+.modal h3{font-family:'Unbounded',sans-serif;font-size:13px;margin-bottom:6px}
+.modal p{font-size:11px;color:var(--fg3);margin-bottom:14px}
+
+/* ══════════════════════════════════════════════════════════
+   MAIN APP
+══════════════════════════════════════════════════════════ */
+#main-app{display:none;flex-direction:column;height:100vh}
+#main-app.on{display:flex}
+
+/* ── Topbar ── */
+.topbar{
+  background:rgba(13,13,13,.9);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--bdr);
+  height:52px;display:flex;align-items:center;padding:0 20px;gap:12px;
+  flex-shrink:0;position:relative;z-index:10;
+}
+.tbar-logo{display:flex;align-items:center;gap:8px;margin-right:4px}
+.tbar-icon{
+  width:28px;height:28px;background:var(--red);border-radius:7px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 14px rgba(255,0,0,.4);flex-shrink:0;
+}
+.tbar-icon::after{
+  content:"";border-left:9px solid transparent;border-right:0 solid transparent;
+  border-top:6px solid transparent;border-bottom:6px solid transparent;
+  border-left-color:#fff;margin-left:3px;
+}
+.tbar-name{font-family:'Unbounded',sans-serif;font-size:12px;letter-spacing:.02em}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:2px;margin-left:8px}
+.tab{
+  padding:6px 14px;border:none;border-radius:var(--rpill);
+  background:transparent;color:var(--fg3);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;
+}
+.tab:hover{background:var(--s3);color:var(--fg)}
+.tab.active{background:var(--redsoft);color:var(--red);font-weight:600;
+             border:1px solid rgba(255,0,0,.2)}
+.tab-ico{font-size:13px}
+
+/* ── User chip ── */
+.user-chip{
+  margin-left:auto;display:flex;align-items:center;gap:8px;
+  background:var(--card);border:1px solid var(--bdr2);
+  border-radius:var(--rpill);padding:4px 12px 4px 5px;
+}
+.chip-av{
+  width:26px;height:26px;border-radius:50%;background:var(--red);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Unbounded',sans-serif;font-size:10px;color:#fff;flex-shrink:0;
+}
+.chip-name{font-size:11px;font-weight:600;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip-signout{
+  font-size:10px;color:var(--fg3);cursor:pointer;padding:2px 6px;
+  border-radius:var(--rpill);background:none;border:none;
+  font-family:'DM Sans',sans-serif;transition:all .15s;
+}
+.chip-signout:hover{background:var(--s3);color:var(--red)}
+
+/* ── Pages ── */
+.pages{flex:1;overflow:hidden;position:relative}
+.page{
+  position:absolute;inset:0;overflow-y:auto;padding:20px;
+  display:none;
+}
+.page.on{display:block;animation:pageIn .25s ease}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ══════════════════════════════════════════════════════════
+   DOWNLOAD PAGE
+══════════════════════════════════════════════════════════ */
+.dl-hero{
+  text-align:center;padding:28px 0 20px;
+}
+.dl-hero-title{
+  font-family:'Unbounded',sans-serif;font-size:22px;font-weight:900;
+  background:linear-gradient(135deg,#fff 0%,#ff4444 60%,#ff0000 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;line-height:1.2;
+}
+.dl-hero-sub{font-size:12px;color:var(--fg3);margin-top:6px}
+
+/* Cards */
+.card{
+  background:var(--card);border:1px solid var(--bdr);
+  border-radius:var(--r);padding:16px 18px;margin-bottom:12px;
+  transition:border-color .2s;
+}
+.card:focus-within{border-color:rgba(255,0,0,.3)}
+.clabel{
+  font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--fg3);margin-bottom:8px;
+}
+
+/* URL input */
+.url-row{display:flex;gap:6px;align-items:center}
+.url-inp{
+  flex:1;background:var(--s3);border:1px solid var(--bdr2);
+  border-radius:var(--rpill);padding:9px 16px;
+  font-family:'DM Mono',monospace;font-size:12px;color:var(--fg);
+  outline:none;transition:border .18s,box-shadow .18s;
+}
+.url-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft)}
+.url-inp::placeholder{color:var(--fg3)}
+
+/* Pills */
+.pill{
+  padding:8px 14px;border:none;border-radius:var(--rpill);
+  background:var(--s3);color:var(--fg2);
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.pill:hover{background:var(--s4);color:var(--fg)}
+.pill.danger:hover{background:rgba(255,0,0,.1);color:var(--red)}
+.pill:active{transform:scale(.97)}
+.pill.outline{background:transparent;border:1px solid var(--bdr2)}
+.pill.outline:hover{border-color:var(--red);color:var(--red)}
+
+/* Options */
+.opts-row{display:flex;gap:14px;flex-wrap:wrap}
+.opt-group{display:flex;flex-direction:column;gap:5px}
+.opt-label{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
+.opt-select{
+  background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);
+  padding:7px 32px 7px 13px;
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--fg);
+  outline:none;cursor:pointer;transition:border .18s;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;min-width:130px;
+}
+.opt-select:focus{border-color:var(--red)}
+.opt-select option{background:var(--card2)}
+
+/* Path bar */
+.path-bar{
+  display:flex;align-items:center;gap:8px;
+  background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);
+  padding:8px 14px;cursor:pointer;transition:border .18s;
+}
+.path-bar:hover{border-color:rgba(255,0,0,.3)}
+.path-text{flex:1;font-family:'DM Mono',monospace;font-size:11px;color:var(--fg2);
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Big DL button */
+.dl-btn{
+  padding:13px 32px;border:none;border-radius:var(--rpill);
+  background:linear-gradient(135deg,#ff2222,#cc0000);color:#fff;
+  font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;
+  cursor:pointer;transition:all .2s;
+  display:inline-flex;align-items:center;gap:8px;
+  box-shadow:0 4px 24px rgba(255,0,0,.35);
+}
+.dl-btn:hover{transform:translateY(-2px);box-shadow:0 8px 40px rgba(255,0,0,.5)}
+.dl-btn:active{transform:none}
+.dl-btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.dl-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* Progress */
+.prog-wrap{margin:14px 0 6px}
+.prog-track{height:4px;background:var(--s3);border-radius:var(--rpill);overflow:hidden;position:relative}
+.prog-fill{
+  height:100%;width:0;
+  background:linear-gradient(90deg,var(--red),#ff6666);
+  border-radius:var(--rpill);transition:width .35s ease;
+  box-shadow:0 0 10px rgba(255,0,0,.6);
+  position:relative;
+}
+.prog-fill::after{
+  content:"";position:absolute;right:0;top:-3px;width:10px;height:10px;
+  background:#fff;border-radius:50%;border:2px solid var(--red);
+  box-shadow:0 0 8px rgba(255,0,0,.8);
+  opacity:0;transition:opacity .2s;
+}
+.prog-fill.active::after{opacity:1}
+.prog-meta{display:flex;justify-content:space-between;margin-top:5px}
+.prog-meta span{font-size:10px;color:var(--fg3);font-family:'DM Mono',monospace}
+
+.stat-row{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.stat-txt{font-size:11px;min-height:18px}
+.stat-txt.yellow{color:var(--ylw)}
+.stat-txt.green{color:var(--grn)}
+.stat-txt.red{color:var(--red)}
+.stat-spd{font-size:10px;font-family:'DM Mono',monospace;color:var(--fg3)}
+
+/* Console log */
+.console{
+  background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;
+  padding:10px 12px;font-family:'DM Mono',monospace;font-size:10px;
+  color:var(--fg3);height:90px;overflow-y:auto;margin-top:10px;line-height:1.8;
+}
+.log-ok{color:var(--grn)}.log-err{color:var(--red)}.log-dim{color:var(--fg3)}
+.log-ylw{color:var(--ylw)}
+
+/* ══════════════════════════════════════════════════════════
+   HISTORY
+══════════════════════════════════════════════════════════ */
+.hist-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.hist-hdr h2{font-family:'Unbounded',sans-serif;font-size:14px}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--fg3)}
+.empty-ico{font-size:36px;margin-bottom:12px;opacity:.4}
+
+.hist-item{
+  background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);
+  padding:12px 16px;margin-bottom:8px;
+  display:flex;align-items:center;gap:12px;
+  transition:border-color .15s,transform .15s;
+  animation:slideIn .3s cubic-bezier(.16,1,.3,1) both;
+}
+.hist-item:hover{border-color:var(--bdr2);transform:translateX(2px)}
+@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.hi-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.hi-dot.ok{background:var(--grn);box-shadow:0 0 6px var(--grn)}
+.hi-dot.err{background:var(--red)}
+.hi-info{flex:1;min-width:0}
+.hi-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hi-meta{font-size:10px;color:var(--fg3);margin-top:2px;font-family:'DM Mono',monospace}
+
+/* ══════════════════════════════════════════════════════════
+   SETTINGS
+══════════════════════════════════════════════════════════ */
+.settings-grid{display:grid;gap:12px}
+
+.acc-row{display:flex;align-items:center;gap:12px}
+.acc-av{
+  width:40px;height:40px;border-radius:50%;background:var(--red);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Unbounded',sans-serif;font-size:16px;color:#fff;
+  box-shadow:0 0 16px rgba(255,0,0,.3);
+}
+.acc-name{font-size:14px;font-weight:600}
+.acc-email{font-size:11px;color:var(--fg3);margin-top:2px;font-family:'DM Mono',monospace}
+.acc-method{font-size:10px;color:var(--fg3);margin-top:1px}
+
+.sys-row{display:flex;align-items:center;justify-content:space-between;
+         padding:7px 0;border-bottom:1px solid var(--fg4)}
+.sys-row:last-child{border-bottom:none}
+.sys-key{font-size:11px;color:var(--fg2)}
+.sys-val{font-size:10px;color:var(--fg3);font-family:'DM Mono',monospace}
+.badge{padding:2px 9px;border-radius:var(--rpill);font-size:10px;font-weight:600}
+.badge.ok{background:rgba(0,230,118,.1);color:var(--grn)}
+.badge.err{background:var(--redsoft);color:var(--red)}
+
+/* Rate card */
+.rate-card{
+  background:linear-gradient(135deg,rgba(255,0,0,.06) 0%,var(--card) 60%);
+  border:1px solid rgba(255,0,0,.15);
+  border-radius:var(--r);padding:16px 18px;
+  display:flex;align-items:center;gap:14px;
+}
+.rate-ico{font-size:24px}
+.rate-info h3{font-family:'Unbounded',sans-serif;font-size:12px;margin-bottom:3px}
+.rate-info p{font-size:11px;color:var(--fg3)}
+.rate-btn{
+  margin-left:auto;padding:8px 18px;border:none;border-radius:var(--rpill);
+  background:var(--red);color:#fff;
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  cursor:pointer;transition:all .18s;white-space:nowrap;
+  box-shadow:0 2px 12px rgba(255,0,0,.3);
+}
+.rate-btn:hover{background:#ff1a1a;transform:translateY(-1px)}
+
+/* Stars */
+.star-row{display:flex;gap:6px;justify-content:center;margin:14px 0}
+.star{font-size:28px;cursor:pointer;color:var(--fg3);transition:all .12s;user-select:none}
+.star.lit{color:#ffab40;text-shadow:0 0 12px rgba(255,171,64,.6)}
+.star:hover{transform:scale(1.15)}
+
+.upd-res{margin-top:8px;font-size:11px;padding:7px 11px;border-radius:8px;
+         background:var(--s3);display:none}
+.upd-res.show{display:block}
+.upd-res.ok{color:var(--grn)}.upd-res.fail{color:var(--red)}
+
+/* ══════════════════════════════════════════════════════════
+   TOASTS
+══════════════════════════════════════════════════════════ */
+#toasts{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:6px}
+.toast{
+  background:var(--card2);border:1px solid var(--bdr2);
+  border-radius:10px;padding:10px 16px;font-size:12px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  animation:toastIn .3s cubic-bezier(.16,1,.3,1);
+  max-width:280px;
+}
+@keyframes toastIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+.toast.ok{border-color:rgba(0,230,118,.3);color:var(--grn)}
+.toast.err{border-color:rgba(255,0,0,.3);color:var(--red)}
+
+/* ══════════════════════════════════════════════════════════
+   NETWORK BANNER
+══════════════════════════════════════════════════════════ */
+.net-url{
+  font-family:'DM Mono',monospace;font-size:10px;
+  background:rgba(68,138,255,.08);border:1px solid rgba(68,138,255,.2);
+  color:var(--blue);padding:6px 14px;border-radius:var(--rpill);
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  transition:all .15s;
+}
+.net-url:hover{background:rgba(68,138,255,.15)}
+
+/* Responsive */
+@media(max-width:560px){
+  .opts-row{gap:10px}
+  .dl-hero-title{font-size:16px}
+  .login-wrap{width:92vw}
+}
+</style>
+</head>
+<body>
+<div class="blob"></div>
+<div id="app">
+
+<!-- ══════════════════════ LOGIN ══════════════════════ -->
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-logo">
+      <div class="logo-mark">
+        <div class="logo-icon"></div>
+        <span class="logo-title">YTDL</span>
+      </div>
+      <div class="logo-sub">YouTube Downloader · Free · Private · Unlimited</div>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-heading" id="auth-head">Welcome back</div>
+
+      <div id="f-name" class="field" style="display:none">
+        <label class="field-label">Your Name</label>
+        <input class="field-input" id="inp-name" type="text" placeholder="John Doe"/>
+      </div>
+      <div class="field">
+        <label class="field-label">Email Address</label>
+        <input class="field-input" id="inp-email" type="email" placeholder="you@example.com"/>
+      </div>
+      <div class="field">
+        <label class="field-label">Password</label>
+        <input class="field-input" id="inp-pw" type="password" placeholder="••••••••"/>
+      </div>
+      <div id="f-cpw" class="field" style="display:none">
+        <label class="field-label">Confirm Password</label>
+        <input class="field-input" id="inp-cpw" type="password" placeholder="••••••••"/>
+      </div>
+
+      <div class="auth-err" id="auth-err"></div>
+      <button class="btn-red" id="auth-btn" onclick="doAuth()">Sign In</button>
+
+      <div class="or-row">or</div>
+
+      <button class="btn-google" onclick="showGDlg()">
+        <span class="g-icon">🔵</span> Continue with Google
+      </button>
+
+      <div class="auth-switch">
+        <span id="sw-text">No account?</span>
+        <a onclick="toggleAuthMode()"> Create one</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ GOOGLE MODAL ══════════════════════ -->
+<div class="modal-bg" id="gdlg" style="display:none" onclick="closeGDlg(event)">
+  <div class="modal">
+    <h3>🔵 Continue with Google</h3>
+    <p>Enter your Gmail to sign in or create an account instantly</p>
+    <div class="field">
+      <label class="field-label">Gmail Address</label>
+      <input class="field-input" id="g-email" type="email" placeholder="you@gmail.com"/>
+    </div>
+    <div class="auth-err" id="g-err"></div>
+    <button class="btn-red" onclick="doGoogle()" style="margin-top:8px">Continue →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════ RATE MODAL ══════════════════════ -->
+<div class="modal-bg" id="ratedlg" style="display:none" onclick="closeRateDlg(event)">
+  <div class="modal">
+    <h3>⭐ Rate YTDL</h3>
+    <p>How would you rate your experience?</p>
+    <div class="star-row" id="stars">
+      <span class="star" data-n="1" onclick="setStar(1)" onmouseover="hoverStar(1)" onmouseout="resetStar()">★</span>
+      <span class="star" data-n="2" onclick="setStar(2)" onmouseover="hoverStar(2)" onmouseout="resetStar()">★</span>
+      <span class="star" data-n="3" onclick="setStar(3)" onmouseover="hoverStar(3)" onmouseout="resetStar()">★</span>
+      <span class="star" data-n="4" onclick="setStar(4)" onmouseover="hoverStar(4)" onmouseout="resetStar()">★</span>
+      <span class="star" data-n="5" onclick="setStar(5)" onmouseover="hoverStar(5)" onmouseout="resetStar()">★</span>
+    </div>
+    <textarea class="field-input" id="rate-fb" rows="2" placeholder="Tell us what you think (optional)…" style="border-radius:10px;resize:none;margin-top:4px"></textarea>
+    <button class="btn-red" onclick="submitRate()" style="margin-top:10px">Submit Rating</button>
+  </div>
+</div>
+
+<!-- ══════════════════════ MAIN APP ══════════════════════ -->
+<div id="main-app">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="tbar-logo">
+      <div class="tbar-icon"></div>
+      <span class="tbar-name">YTDL</span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-dl" onclick="gotoTab('dl')">
+        <span class="tab-ico">⬇</span> Download
+      </button>
+      <button class="tab" id="tab-hist" onclick="gotoTab('hist')">
+        <span class="tab-ico">🕘</span> History
+      </button>
+      <button class="tab" id="tab-set" onclick="gotoTab('set')">
+        <span class="tab-ico">⚙</span> Settings
+      </button>
+    </div>
+
+    <div class="user-chip">
+      <div class="chip-av" id="chip-av">?</div>
+      <span class="chip-name" id="chip-name">—</span>
+      <button class="chip-signout" onclick="signOut()">sign out</button>
+    </div>
+  </div>
+
+  <!-- Pages -->
+  <div class="pages">
+
+    <!-- ── DOWNLOAD ── -->
+    <div class="page on" id="page-dl">
+      <div class="dl-hero">
+        <div class="dl-hero-title">Download Anything.<br/>Zero Limits.</div>
+        <div class="dl-hero-sub">4K · 1080p · Audio · Playlists · Always with Sound</div>
+      </div>
+
+      <div class="card">
+        <div class="clabel">YouTube / Shorts / Playlist URL</div>
+        <div class="url-row">
+          <input class="url-inp" id="url-inp" type="text"
+                 placeholder="https://youtube.com/watch?v=…"
+                 onkeydown="if(event.key==='Enter')go()"/>
+          <button class="pill" onclick="doPaste()">📋 Paste</button>
+          <button class="pill danger" onclick="document.getElementById('url-inp').value=''">✕</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="clabel">Options</div>
+        <div class="opts-row">
+          <div class="opt-group">
+            <label class="opt-label">Mode</label>
+            <select class="opt-select" id="sel-mode" onchange="savePrefs()">
+              <option>Video</option>
+              <option>Audio Only</option>
+              <option>Playlist — Video</option>
+              <option>Playlist — Audio</option>
+            </select>
+          </div>
+          <div class="opt-group">
+            <label class="opt-label">Quality</label>
+            <select class="opt-select" id="sel-quality" onchange="savePrefs()">
+              <option>Best (Max Quality)</option>
+              <option>4K</option>
+              <option>1080p</option>
+              <option>720p</option>
+              <option>480p</option>
+              <option>360p</option>
+            </select>
+          </div>
+          <div class="opt-group">
+            <label class="opt-label">Format</label>
+            <select class="opt-select" id="sel-format" onchange="savePrefs()">
+              <option>mp4</option>
+              <option>mkv</option>
+              <option>webm</option>
+              <option>mp3</option>
+              <option>m4a</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="clabel">Save Folder</div>
+        <div class="path-bar" onclick="changePath()">
+          <span>📁</span>
+          <span class="path-text" id="path-txt">~/Downloads</span>
+          <span style="font-size:9px;color:var(--fg3);margin-left:auto">click to change</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="dl-row">
+          <button class="dl-btn" id="dl-btn" onclick="go()">
+            ⬇ Download Now
+          </button>
+          <button class="pill outline" onclick="cancelDl()">Cancel</button>
+        </div>
+
+        <div class="prog-wrap" id="prog-wrap" style="display:none">
+          <div class="prog-track">
+            <div class="prog-fill" id="prog-fill"></div>
+          </div>
+          <div class="prog-meta">
+            <span id="prog-pct">0%</span>
+            <span id="prog-spd">—</span>
+            <span id="prog-eta">—</span>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-txt" id="stat-txt">Ready</div>
+          <div class="stat-spd" id="stat-spd2"></div>
+        </div>
+        <div class="console" id="console-log">Waiting for download…</div>
+      </div>
+    </div>
+
+    <!-- ── HISTORY ── -->
+    <div class="page" id="page-hist">
+      <div class="hist-hdr">
+        <h2>Download History</h2>
+        <button class="pill outline" onclick="clearHist()">🗑 Clear All</button>
+      </div>
+      <div id="hist-list"></div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="page" id="page-set">
+      <div class="settings-grid">
+
+        <!-- Account -->
+        <div class="card">
+          <div class="clabel">Account</div>
+          <div class="acc-row">
+            <div class="acc-av" id="set-av">?</div>
+            <div>
+              <div class="acc-name" id="set-name">—</div>
+              <div class="acc-email" id="set-email">—</div>
+              <div class="acc-method" id="set-method">—</div>
+            </div>
+            <button class="pill outline" onclick="signOut()" style="margin-left:auto;font-size:11px">← Sign Out</button>
+          </div>
+        </div>
+
+        <!-- Save Folder -->
+        <div class="card">
+          <div class="clabel">Save Folder</div>
+          <div class="path-bar" onclick="changePath()" style="margin-top:4px">
+            <span>📁</span>
+            <span class="path-text" id="set-path-txt">~/Downloads</span>
+          </div>
+        </div>
+
+        <!-- System -->
+        <div class="card">
+          <div class="clabel">System Status</div>
+          <div class="sys-row">
+            <span class="sys-key">FFmpeg</span>
+            <span class="badge ok" id="ffmpeg-badge">✓ Ready — sound works</span>
+          </div>
+          <div class="sys-row">
+            <span class="sys-key">yt-dlp</span>
+            <span class="sys-val" id="ytdlp-ver">loading…</span>
+          </div>
+          <div class="sys-row">
+            <span class="sys-key">Local</span>
+            <span class="sys-val">http://localhost:5000</span>
+          </div>
+          <div class="sys-row">
+            <span class="sys-key">Network</span>
+            <span class="sys-val" id="net-url-val">loading…</span>
+          </div>
+          <p style="font-size:10px;color:var(--fg3);margin-top:8px;line-height:1.6">
+            Share the Network URL with anyone on your WiFi — they can download from their phone or laptop!
+          </p>
+        </div>
+
+        <!-- Update -->
+        <div class="card">
+          <div class="clabel">Update</div>
+          <button class="pill" style="font-size:12px;padding:9px 16px" onclick="doUpdate(this)">
+            🔄 Update yt-dlp to Latest
+          </button>
+          <div class="upd-res" id="upd-res"></div>
+        </div>
+
+        <!-- Rate -->
+        <div class="rate-card">
+          <div class="rate-ico">⭐</div>
+          <div class="rate-info">
+            <h3>Enjoying YTDL?</h3>
+            <p>Takes 5 seconds — really helps!</p>
+          </div>
+          <button class="rate-btn" onclick="openRateDlg()">Rate Us</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+/* ════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+let U = null;             // current user {email,name,method,prefs}
+let _authMode = 'login';  // 'login' | 'register'
+let _stars = 0;
+let _es = null;           // EventSource for download
+let _busy = false;
+let _savedPath = '';
+
+const DPATH = navigator.platform.includes('Win')
+  ? (window.location.hostname==='localhost' ? '%USERPROFILE%\\Downloads' : '~/Downloads')
+  : '~/Downloads';
+
+/* ════════════════════════════════════════════
+   AUTH
+════════════════════════════════════════════ */
+function toggleAuthMode(){
+  _authMode = _authMode==='login' ? 'register' : 'login';
+  const r = _authMode==='register';
+  document.getElementById('auth-head').textContent = r ? 'Create account' : 'Welcome back';
+  document.getElementById('auth-btn').textContent  = r ? 'Create Account' : 'Sign In';
+  document.getElementById('sw-text').textContent   = r ? 'Already have one?' : 'No account?';
+  document.querySelector('.auth-switch a').textContent = r ? ' Sign in' : ' Create one';
+  document.getElementById('f-name').style.display = r ? '' : 'none';
+  document.getElementById('f-cpw').style.display  = r ? '' : 'none';
+  setAuthErr('');
+}
+function setAuthErr(m){const e=document.getElementById('auth-err');e.textContent=m;e.className='auth-err'+(m?' show':'')}
+
+async function doAuth(){
+  setAuthErr('');
+  const email=document.getElementById('inp-email').value.trim().toLowerCase();
+  const pw=document.getElementById('inp-pw').value;
+  if(!email||!email.includes('@')){setAuthErr('Enter a valid email.');return}
+  if(!pw){setAuthErr('Enter your password.');return}
+
+  if(_authMode==='register'){
+    const name=document.getElementById('inp-name').value.trim();
+    const cpw=document.getElementById('inp-cpw').value;
+    if(!name){setAuthErr('Enter your name.');return}
+    if(pw.length<6){setAuthErr('Password must be 6+ characters.');return}
+    if(pw!==cpw){setAuthErr("Passwords don't match.");return}
+    const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw,name})});
+    const d=await r.json(); if(!r.ok){setAuthErr(d.error);return}
+    launch(d);
+  } else {
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
+    const d=await r.json(); if(!r.ok){setAuthErr(d.error);return}
+    launch(d);
+  }
+}
+document.getElementById('inp-pw').addEventListener('keydown',e=>e.key==='Enter'&&doAuth());
+
+function showGDlg(){document.getElementById('gdlg').style.display='flex';document.getElementById('g-email').value='';document.getElementById('g-err').textContent=''}
+function closeGDlg(e){if(e.target===document.getElementById('gdlg'))document.getElementById('gdlg').style.display='none'}
+async function doGoogle(){
+  const email=document.getElementById('g-email').value.trim().toLowerCase();
+  const err=document.getElementById('g-err');
+  if(!email||!email.includes('@')){err.textContent='Valid Gmail required';err.className='auth-err show';return}
+  const r=await fetch('/api/google-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+  const d=await r.json();
+  if(!r.ok){err.textContent=d.error;err.className='auth-err show';return}
+  document.getElementById('gdlg').style.display='none';
+  launch(d);
+}
+document.getElementById('g-email').addEventListener('keydown',e=>e.key==='Enter'&&doGoogle());
+
+function launch(user){
+  U=user;
+  localStorage.setItem('ytdl_u',JSON.stringify(user));
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-app').classList.add('on');
+  fillUserUI();
+  applyPrefs(user.prefs||{});
+  loadInfo();
+  const isNew=!user.prefs||!Object.keys(user.prefs).length;
+  toast(isNew?`Welcome, ${user.name.split(' ')[0]}! 🎉`:`Hey ${user.name.split(' ')[0]}! 👋`,'ok');
+}
+
+function fillUserUI(){
+  if(!U)return;
+  const i=U.name[0].toUpperCase();
+  ['chip-av','set-av'].forEach(id=>document.getElementById(id).textContent=i);
+  document.getElementById('chip-name').textContent=U.name;
+  document.getElementById('set-name').textContent=U.name;
+  document.getElementById('set-email').textContent=U.email;
+  document.getElementById('set-method').textContent='Signed in with '+(U.method==='google'?'Google':'Email & Password');
+}
+
+function signOut(){
+  U=null; localStorage.removeItem('ytdl_u');
+  document.getElementById('main-app').classList.remove('on');
+  document.getElementById('login-screen').style.display='flex';
+}
+
+/* ════════════════════════════════════════════
+   PREFS
+════════════════════════════════════════════ */
+function applyPrefs(p){
+  if(!p)return;
+  const set=(id,v)=>{if(v){const el=document.getElementById(id);if(el)el.value=v}};
+  set('sel-mode',p.mode);
+  set('sel-quality',p.quality);
+  set('sel-format',p.format);
+  const path=p.savepath||DPATH;
+  _savedPath=p.savepath||'';
+  ['path-txt','set-path-txt'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=path});
+}
+
+async function savePrefs(){
+  if(!U)return;
+  const prefs={
+    mode:document.getElementById('sel-mode')?.value||'Video',
+    quality:document.getElementById('sel-quality')?.value||'Best (Max Quality)',
+    format:document.getElementById('sel-format')?.value||'mp4',
+    savepath:_savedPath||'',
+  };
+  U.prefs=prefs; localStorage.setItem('ytdl_u',JSON.stringify(U));
+  try{await fetch('/api/prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:U.email,prefs})})}catch{}
+}
+
+function changePath(){
+  const cur=_savedPath||DPATH;
+  const np=prompt('Save folder path:',cur);
+  if(np&&np.trim()){
+    _savedPath=np.trim();
+    ['path-txt','set-path-txt'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=_savedPath});
+    savePrefs(); toast('Save folder updated ✓','ok');
+  }
+}
+
+/* ════════════════════════════════════════════
+   TABS
+════════════════════════════════════════════ */
+function gotoTab(name){
+  ['dl','hist','set'].forEach(n=>{
+    document.getElementById('tab-'+n).className='tab'+(n===name?' active':'');
+    document.getElementById('page-'+n).className='page'+(n===name?' on':'');
+  });
+  if(name==='hist')loadHist();
+}
+
+/* ════════════════════════════════════════════
+   DOWNLOAD
+════════════════════════════════════════════ */
+function doPaste(){navigator.clipboard.readText().then(t=>{document.getElementById('url-inp').value=t.trim()}).catch(()=>toast('Clipboard unavailable','err'))}
+
+function setStat(msg,cls){const el=document.getElementById('stat-txt');el.textContent=msg;el.className='stat-txt'+(cls?' '+cls:'')}
+function setSpd(s){document.getElementById('stat-spd2').textContent=s}
+function setProg(p){
+  const f=document.getElementById('prog-fill');
+  f.style.width=p+'%';
+  document.getElementById('prog-pct').textContent=p.toFixed(1)+'%';
+  if(p>0&&p<100)f.classList.add('active'); else f.classList.remove('active');
+}
+function addLog(text,c){
+  const con=document.getElementById('console-log');
+  const d=document.createElement('div');
+  d.className=c?'log-'+c:'';d.textContent=text;
+  con.appendChild(d);con.scrollTop=con.scrollHeight;
+}
+
+async function go(){
+  if(_busy)return;
+  const url=document.getElementById('url-inp').value.trim();
+  if(!url){toast('Paste a YouTube URL first!','err');return}
+  _busy=true;
+  document.getElementById('dl-btn').disabled=true;
+  document.getElementById('prog-wrap').style.display='';
+  document.getElementById('console-log').innerHTML='';
+  setProg(0);setStat('Starting…','yellow');setSpd('');
+  addLog('► '+url,'dim');
+
+  const r=await fetch('/api/download',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({url,mode:document.getElementById('sel-mode').value,
+      quality:document.getElementById('sel-quality').value,
+      format:document.getElementById('sel-format').value,
+      path:_savedPath||'',user:U?.email||''})});
+  const d=await r.json();
+  if(!r.ok){setStat('Error: '+d.error,'red');_busy=false;document.getElementById('dl-btn').disabled=false;return}
+
+  if(_es){_es.close();_es=null}
+  _es=new EventSource('/api/progress/'+d.job_id);
+  _es.onmessage=e=>{
+    const p=JSON.parse(e.data);
+    if(p.logs)p.logs.forEach(l=>addLog(l.t,l.c==='ok'?'ok':l.c==='err'?'err':l.c==='ylw'?'ylw':'dim'));
+    if(p.status==='downloading'){
+      setProg(p.progress);
+      setStat(`Downloading  ${p.progress.toFixed(1)}%`,'yellow');
+      setSpd((p.speed||'')+(p.eta?' · ETA '+p.eta:''));
+      document.getElementById('prog-spd').textContent=p.speed||'';
+      document.getElementById('prog-eta').textContent=p.eta?'ETA '+p.eta:'';
+    } else if(p.status==='merging'){
+      setStat('Merging video + audio…','yellow');
+    }
+    if(p.done){
+      _es.close();_es=null;_busy=false;
+      document.getElementById('dl-btn').disabled=false;
+      document.getElementById('prog-fill').classList.remove('active');
+      if(p.status==='done'){
+        setProg(100);setStat('✓ Download complete!','green');setSpd('');
+        toast('Download complete! ✓','ok');
+      } else {
+        setStat('Failed: '+(p.error||'Unknown error'),'red');
+        toast('Download failed','err');
+      }
+    }
+  };
+  _es.onerror=()=>{
+    if(_es){_es.close();_es=null}
+    _busy=false;document.getElementById('dl-btn').disabled=false;
+    setStat('Connection lost. Try again.','red');
+  };
+}
+
+function cancelDl(){
+  if(_es){_es.close();_es=null}
+  _busy=false;document.getElementById('dl-btn').disabled=false;
+  document.getElementById('prog-wrap').style.display='none';
+  setProg(0);setStat('Cancelled.','');setSpd('');
+  toast('Cancelled','');
+}
+
+/* ════════════════════════════════════════════
+   HISTORY
+════════════════════════════════════════════ */
+async function loadHist(){
+  if(!U)return;
+  const r=await fetch('/api/history?user='+encodeURIComponent(U.email));
+  const items=await r.json();
+  const el=document.getElementById('hist-list');
+  if(!items.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-ico">🎬</div><p>No downloads yet.<br>Start downloading to see history here.</p></div>`;
+    return;
+  }
+  el.innerHTML='';
+  [...items].reverse().forEach((item,i)=>{
+    const row=document.createElement('div');
+    row.className='hist-item';
+    row.style.animationDelay=(i*.04)+'s';
+    const dot=item.status==='done'?'ok':'err';
+    const meta=[item.mode,item.quality,(item.format||'').toUpperCase(),item.date].filter(Boolean).join(' · ');
+    row.innerHTML=`
+      <div class="hi-dot ${dot}"></div>
+      <div class="hi-info">
+        <div class="hi-title">${esc(item.title||item.url||'?')}</div>
+        <div class="hi-meta">${esc(meta)}</div>
+      </div>
+      <button class="pill outline" style="font-size:10px" onclick="redl('${esc(item.url||'')}')">↺ Re-dl</button>
+    `;
+    el.appendChild(row);
+  });
+}
+function redl(url){document.getElementById('url-inp').value=url;gotoTab('dl')}
+async function clearHist(){
+  if(!confirm('Delete all your download history?'))return;
+  await fetch('/api/history/clear?user='+encodeURIComponent(U.email),{method:'DELETE'});
+  toast('History cleared','ok');loadHist();
+}
+
+/* ════════════════════════════════════════════
+   SETTINGS / INFO
+════════════════════════════════════════════ */
+async function loadInfo(){
+  try{
+    const r=await fetch('/api/info');
+    const d=await r.json();
+    document.getElementById('ytdlp-ver').textContent='v'+d.ytdlp;
+    const nu=document.getElementById('net-url-val');
+    if(d.network&&d.network!=='http://localhost:5000'){
+      nu.textContent=d.network;nu.style.color='var(--blue)';
+    } else {
+      nu.textContent='Same as local (localhost)';
+    }
+    if(!d.ffmpeg){
+      const fb=document.getElementById('ffmpeg-badge');
+      if(fb)fb.textContent='✓ Built-in (static-ffmpeg)';
+    }
+  }catch{}
+}
+
+async function doUpdate(btn){
+  btn.textContent='Updating…';btn.disabled=true;
+  const r=await fetch('/api/update-ytdlp',{method:'POST'});
+  const d=await r.json();
+  const el=document.getElementById('upd-res');
+  el.textContent=d.msg;el.className='upd-res show '+(d.ok?'ok':'fail');
+  btn.textContent='🔄 Update yt-dlp to Latest';btn.disabled=false;
+  if(d.ok)loadInfo();
+}
+
+/* ════════════════════════════════════════════
+   RATE
+════════════════════════════════════════════ */
+function openRateDlg(){_stars=0;renderStars();document.getElementById('ratedlg').style.display='flex'}
+function closeRateDlg(e){if(e.target===document.getElementById('ratedlg'))document.getElementById('ratedlg').style.display='none'}
+function hoverStar(n){document.querySelectorAll('.star').forEach((s,i)=>{s.className='star'+(i<n?' lit':'')})}
+function resetStar(){renderStars()}
+function setStar(n){_stars=n;renderStars()}
+function renderStars(){document.querySelectorAll('.star').forEach((s,i)=>{s.className='star'+(i<_stars?' lit':'')})}
+function submitRate(){
+  if(!_stars){toast('Pick a star rating!','err');return}
+  document.getElementById('ratedlg').style.display='none';
+  toast(`Thanks for the ${_stars}★! ${_stars>=4?'🎉':'We\'ll keep improving.'}`,_stars>=4?'ok':'');
+}
+
+/* ════════════════════════════════════════════
+   TOASTS
+════════════════════════════════════════════ */
+function toast(msg,type=''){
+  const c=document.getElementById('toasts');
+  const t=document.createElement('div');
+  t.className='toast'+(type?' '+type:'');t.textContent=msg;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(16px)';t.style.transition='.3s';setTimeout(()=>t.remove(),300)},3000);
+}
+
+/* ════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════ */
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+// Auto-restore session
+const _saved=localStorage.getItem('ytdl_u');
+if(_saved){try{launch(JSON.parse(_saved))}catch{localStorage.removeItem('ytdl_u')}}
+</script>
+</body>
+</html>
