@@ -2,52 +2,103 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>StreamVault JS | Unlimited</title>
+    <title>StreamVault Desktop</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #080808; color: white; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
-        .glow-button { background: #ff0000; box-shadow: 0 0 20px rgba(255, 0, 0, 0.4); transition: 0.3s; }
-        .glow-button:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(255, 0, 0, 0.6); }
+        body { background: #0a0a0a; color: white; font-family: 'Segoe UI', sans-serif; }
+        .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+        .step-label { font-size: 10px; font-weight: 800; color: #666; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+        select, input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 14px; border-radius: 12px; width: 100%; outline: none; }
+        select:focus, input:focus { border-color: #ff0000; }
+        .btn-main { background: #ff0000; font-weight: 900; letter-spacing: -0.5px; transition: 0.2s; }
+        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255,0,0,0.3); }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-    <div class="glass p-10 rounded-[3rem] w-full max-w-lg text-center">
-        <h1 class="text-4xl font-black mb-2 tracking-tighter">YT <span class="text-red-600">FREE</span></h1>
-        <p class="text-gray-500 text-xs mb-8 tracking-widest uppercase">Unlimited • No Python • High Speed</p>
-        
-        <input type="text" id="url" placeholder="Paste link here..." 
-            class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl mb-4 focus:outline-none focus:ring-2 focus:ring-red-600 transition-all">
+<body class="flex items-center justify-center min-h-screen p-4">
 
-        <select id="quality" class="w-full bg-white/5 border border-white/10 p-4 rounded-2xl mb-6 outline-none">
-            <option value="highest" class="bg-black">Highest Quality (4K/1080p)</option>
-            <option value="137" class="bg-black">1080p Only</option>
-            <option value="136" class="bg-black">720p Only</option>
-            <option value="134" class="bg-black">360p (Fast)</option>
-        </select>
+    <div class="glass max-w-lg w-full p-10 rounded-[2.5rem] shadow-2xl">
+        <header class="text-center mb-10">
+            <div class="bg-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <img src="favicon.svg" class="w-8">
+            </div>
+            <h1 class="text-3xl font-black italic">STREAM<span class="text-red-600">VAULT</span></h1>
+            <p class="text-gray-500 text-[10px] tracking-[4px] uppercase mt-1">Native Desktop Edition</p>
+        </header>
 
-        <button onclick="downloadVideo()" class="glow-button w-full p-5 rounded-2xl font-bold text-lg">🚀 Download Now</button>
-        
-        <p id="status" class="mt-6 text-sm text-gray-400"></p>
+        <div class="space-y-6">
+            <div class="relative">
+                <span class="step-label">STEP 1: VIDEO LINK</span>
+                <div class="flex gap-2">
+                    <input type="text" id="url" placeholder="Paste link...">
+                    <button onclick="pasteLink()" class="bg-white/10 hover:bg-white/20 px-4 rounded-12 text-sm font-bold transition">PASTE</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <span class="step-label">FORMAT</span>
+                    <select id="format">
+                        <option value="video">Video</option>
+                        <option value="audio">Audio</option>
+                    </select>
+                </div>
+                <div>
+                    <span class="step-label">QUALITY</span>
+                    <select id="quality">
+                        <option value="2160">4K</option>
+                        <option value="1440">2K</option>
+                        <option value="1080" selected>1080p</option>
+                        <option value="720">720p</option>
+                        <option value="480">480p</option>
+                    </select>
+                </div>
+                <div>
+                    <span class="step-label">EXTENSION</span>
+                    <select id="ext">
+                        <option value="mp4">MP4</option>
+                        <option value="mkv">MKV</option>
+                        <option value="webm">WebM</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="runDownload()" class="btn-main w-full py-5 rounded-2xl text-xl italic uppercase">
+                🚀 Start Download
+            </button>
+        </div>
+
+        <div id="status" class="hidden mt-8 text-center py-4 bg-black/40 rounded-2xl border border-white/5">
+            <p class="text-xs font-bold text-red-500 animate-pulse">SYSTEM: INITIALIZING DOWNLOAD...</p>
+        </div>
     </div>
 
     <script>
-        function downloadVideo() {
+        async function pasteLink() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('url').value = text;
+            } catch (err) {
+                alert("Please allow clipboard access or paste manually.");
+            }
+        }
+
+        function runDownload() {
             const url = document.getElementById('url').value;
             const quality = document.getElementById('quality').value;
-            const status = document.getElementById('status');
+            const format = document.getElementById('format').value;
+            const ext = document.getElementById('ext').value;
 
-            if(!url) return alert("Please enter a URL");
+            if(!url) return alert("Enter a URL first!");
 
-            status.innerText = "⚡ Preparing your download...";
+            document.getElementById('status').classList.remove('hidden');
             
-            // In Node version, we just redirect the window to the download path
-            // The browser handles the download progress automatically!
-            window.location.href = `/download?url=${encodeURIComponent(url)}&quality=${quality}`;
-            
+            // Generate Download URL
+            const query = `url=${encodeURIComponent(url)}&quality=${quality}&format=${format}&ext=${ext}`;
+            window.location.href = `/download?${query}`;
+
             setTimeout(() => {
-                status.innerText = "✅ Check your browser downloads!";
-            }, 3000);
+                document.getElementById('status').innerHTML = '<p class="text-xs font-bold text-green-500">✅ TRANSFERRING TO FOLDER</p>';
+            }, 4000);
         }
     </script>
 </body>
