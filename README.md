@@ -29,10 +29,11 @@
 
 ## 📸 Preview
 
-![App Preview](<img width="1920" height="951" alt="image" src="https://github.com/user-attachments/assets/c46aaae0-f72f-4d82-a14c-fca88539e790" />
+![App Preview](<img width="1920" height="951" alt="YTDL Preview" src="https://github.com/user-attachments/assets/4b2e636c-e23e-4c4b-b826-910e206888e1" />
 )
 
-*(Replace with actual screenshot)*
+*(Replace with actual screenshot)
+
 
 ## 🚀 Quick Start
 
