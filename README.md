@@ -1,19 +1,48 @@
-# 🚀 StreamVault 4K (Unlimited Edition)
+<div align="center">
 
-A high-performance YouTube downloader built with **Node.js** and the **yt-dlp** engine. No limits, no ads, and no Python installation required for the end-user.
+# YTDL - YouTube Downloader
 
-## 🔥 Key Updates
-- **Fixed Request Error:** Resolved the `TypeError` regarding undefined URLs.
-- **Auto-Engine:** The `.bat` file now automatically fetches the latest `yt-dlp` executable.
-- **Dynamic Filenames:** Downloads now save with the actual YouTube video title instead of "video.mp4".
-- **4K Steel-Stable:** Optimized for Ultra HD resolutions.
+![YTDL Banner](https://via.placeholder.com/1200x400/111111/FF0033?text=YTDL+-+Download+Anything.+Zero+Limits.)
 
-## ⚡ Quick Start
-1. Ensure **Node.js** is installed.
-2. Run `START - Click Here.bat`.
-3. Paste your link and hit **Download**.
+**Download Anything. Zero Limits.**
 
-## 🛠 Tech Stack
-- **Backend:** Express.js
-- **Engine:** yt-dlp (Binary)
-- **UI:** Tailwind CSS + Glassmorphism
+**4K • 1080p • Audio • Playlists • Fast • Unlimited**
+
+</div>
+
+<br>
+
+![GitHub stars](https://img.shields.io/github/stars/Makerxm800/YTDL?style=for-the-badge)
+![License](https://img.shields.io/github/license/Makerxm800/YTDL?style=for-the-badge)
+![Version](https://img.shields.io/github/v/release/Makerxm800/YTDL?style=for-the-badge)
+
+## ✨ Features
+
+- **Unlimited Downloads** — No daily limits, no restrictions
+- **Highest Quality Support** — Up to 4K, 8K & 1080p
+- **Multiple Formats** — MP4, MP3, M4A, WebM & more
+- **Playlist & Shorts Support**
+- **Always with Sound** — Video + Audio merged automatically
+- **Fast Downloads** with progress tracking
+- **Clean & Modern Dark UI**
+- **Save to Custom Folder**
+
+## 📸 Preview
+
+![App Preview](https://via.placeholder.com/900x500/1A1A1A/FF0033?text=YTDL+Interface+Preview)
+
+*(Replace with actual screenshot)*
+
+## 🚀 Quick Start
+
+### Option 1: Download Release (Recommended)
+1. Go to [Releases](https://github.com/Makerxm800/YTDL/releases)
+2. Download the latest `.exe` (Windows)
+3. Run and enjoy!
+
+### Option 2: Run from Source
+```bash
+git clone https://github.com/Makerxm800/YTDL.git
+cd YTDL
+npm install
+npm start
