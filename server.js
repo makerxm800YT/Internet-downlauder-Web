@@ -1,36 +1,42 @@
 const express = require('express');
-const ytdl = require('@distube/ytdl-core');
+const { spawn } = require('child_process');
+const path = require('path');
 const cors = require('cors');
 const app = express();
 
 app.use(cors());
-app.use(express.static('.')); // Serves your index.html
+app.use(express.static('.'));
 
-app.get('/download', async (req, res) => {
+app.get('/download', (res, req) => {
     const videoURL = req.query.url;
-    const quality = req.query.quality || 'highest';
+    const quality = req.query.quality || '1080';
 
-    if (!ytdl.validateURL(videoURL)) {
-        return res.status(400).send('Invalid YouTube URL');
-    }
+    if (!videoURL) return res.status(400).send('URL is required');
 
-    try {
-        const info = await ytdl.getInfo(videoURL);
-        const title = info.videoDetails.title.replace(/[^\x00-\x7F]/g, ""); // Clean title
+    // Clean filename logic
+    const filename = `video_${Date.now()}.mp4`;
 
-        res.header('Content-Disposition', `attachment; filename="${title}.mp4"`);
-        
-        // This streams the video directly to the user
-        ytdl(videoURL, {
-            quality: quality,
-            format: 'mp4'
-        }).pipe(res);
+    res.header('Content-Disposition', `attachment; filename="${filename}"`);
 
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Internal Server Error');
-    }
+    // The UNSTOPPABLE Engine: yt-dlp
+    // It selects the best video up to the requested height + best audio
+    const ytdlp = spawn('yt-dlp', [
+        '-f', `bestvideo[height<=${quality}]+bestaudio/best`,
+        '--merge-output-format', 'mp4',
+        '-o', '-', // Stream to stdout (Standard Output)
+        videoURL
+    ]);
+
+    ytdlp.stdout.pipe(res);
+
+    ytdlp.stderr.on('data', (data) => {
+        console.log(`[Log]: ${data}`);
+    });
+
+    ytdlp.on('close', (code) => {
+        if (code !== 0) console.error(`Engine exited with code ${code}`);
+    });
 });
 
 const PORT = 3000;
-app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Unlimited Engine running at http://localhost:${PORT}`));
