@@ -1,35 +1,81 @@
-<script>
-    async function pasteLink() {
-        const text = await navigator.clipboard.readText();
-        document.getElementById('url').value = text;
-    }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>StreamVault Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #050505; color: white; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 2.5rem; }
+        .btn-main { background: #ff0000; box-shadow: 0 0 20px rgba(255, 0, 0, 0.2); transition: 0.3s; }
+        .btn-main:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(255, 0, 0, 0.5); }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="glass p-10 w-full max-w-lg animate__animated animate__fadeIn">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black italic tracking-tighter">STREAM<span class="text-red-600">VAULT</span></h1>
+            <p class="text-gray-500 text-[10px] tracking-[3px] uppercase mt-1">4K Steel Stable Edition</p>
+        </div>
 
-    function runDownload() {
-        const url = document.getElementById('url').value;
-        const quality = document.getElementById('quality').value;
-        const format = document.getElementById('format').value;
-        const ext = document.getElementById('ext').value;
+        <div class="space-y-6">
+            <div class="flex gap-2">
+                <input type="text" id="url" placeholder="Paste link here..." class="w-full bg-white/5 border border-white/10 p-4 rounded-xl outline-none focus:border-red-600 transition-all">
+                <button onclick="pasteLink()" class="bg-white/10 px-4 rounded-xl font-bold text-xs hover:bg-white/20">PASTE</button>
+            </div>
 
-        if(!url) return alert("Enter a URL first!");
+            <div class="grid grid-cols-3 gap-3">
+                <select id="format" class="bg-white/5 border border-white/10 p-3 rounded-xl outline-none text-sm cursor-pointer">
+                    <option value="video" class="bg-black">Video</option>
+                    <option value="audio" class="bg-black">Audio</option>
+                </select>
+                <select id="quality" class="bg-white/5 border border-white/10 p-3 rounded-xl outline-none text-sm cursor-pointer">
+                    <option value="2160" class="bg-black">4K</option>
+                    <option value="1080" class="bg-black" selected>1080p</option>
+                    <option value="720" class="bg-black">720p</option>
+                </select>
+                <select id="ext" class="bg-white/5 border border-white/10 p-3 rounded-xl outline-none text-sm cursor-pointer">
+                    <option value="mp4" class="bg-black">MP4</option>
+                    <option value="mkv" class="bg-black">MKV</option>
+                </select>
+            </div>
 
-        // Show loading state
-        const btn = document.querySelector('.btn-main');
-        const status = document.getElementById('status');
-        
-        btn.disabled = true;
-        btn.innerText = "🛠️ PROCESSING AUDIO/VIDEO...";
-        status.classList.remove('hidden');
-        status.innerHTML = '<p class="text-xs font-bold text-red-500 animate-pulse">FIXING SOUND & MERGING 4K... PLEASE WAIT.</p>';
+            <button id="dl-btn" onclick="startDownload()" class="btn-main w-full py-5 rounded-2xl font-black text-xl italic uppercase tracking-tighter">
+                Download Now
+            </button>
+        </div>
 
-        const query = `url=${encodeURIComponent(url)}&quality=${quality}&format=${format}&ext=${ext}`;
-        
-        // This will trigger the download once the server finishes merging
-        window.location.href = `/download?${query}`;
+        <div id="status" class="hidden mt-6 text-center py-4 bg-red-600/10 rounded-2xl border border-red-600/20">
+            <p id="status-text" class="text-xs font-bold text-red-500 animate-pulse uppercase tracking-widest">Merging Audio/Video...</p>
+        </div>
+    </div>
 
-        // Reset button after a delay
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.innerText = "🚀 START DOWNLOAD";
-        }, 10000);
-    }
-</script>
+    <script>
+        async function pasteLink() {
+            const text = await navigator.clipboard.readText();
+            document.getElementById('url').value = text;
+        }
+
+        function startDownload() {
+            const url = document.getElementById('url').value;
+            const q = document.getElementById('quality').value;
+            const f = document.getElementById('format').value;
+            const e = document.getElementById('ext').value;
+
+            if(!url) return alert("Enter a URL first!");
+
+            document.getElementById('status').classList.remove('hidden');
+            document.getElementById('dl-btn').innerText = "ENGINE BUSY...";
+            
+            // This is the stable redirect
+            window.location.href = `/download?url=${encodeURIComponent(url)}&quality=${q}&format=${f}&ext=${e}`;
+            
+            setTimeout(() => {
+                document.getElementById('dl-btn').innerText = "DOWNLOAD NOW";
+                document.getElementById('status-text').innerText = "✅ FILE SENT TO BROWSER";
+                document.getElementById('status-text').classList.replace('text-red-500', 'text-green-500');
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
