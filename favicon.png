@@ -1,13 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
-  <!-- Rounded square background (YouTube red-pink) -->
-  <rect 
-    width="512" 
-    height="512" 
-    rx="128" 
-    fill="#FF0033"/>
+  <!-- Red rounded background -->
+  <rect width="512" height="512" rx="128" fill="#FF0033"/>
   
-  <!-- White Play Triangle -->
-  <path 
-    d="M200 160 L360 256 L200 352 Z" 
-    fill="#FFFFFF"/>
+  <!-- White Play Button -->
+  <path d="M190 165 L380 256 L190 347 Z" fill="#FFFFFF"/>
 </svg>
