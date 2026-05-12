@@ -29,7 +29,8 @@
 
 ## 📸 Preview
 
-![App Preview](https://via.placeholder.com/900x500/1A1A1A/FF0033?text=YTDL+Interface+Preview)
+![App Preview](<img width="1920" height="951" alt="image" src="https://github.com/user-attachments/assets/c46aaae0-f72f-4d82-a14c-fca88539e790" />
+)
 
 *(Replace with actual screenshot)*
 
