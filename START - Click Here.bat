@@ -1,30 +1,39 @@
 @echo off
-title StreamVault Desktop - Engine Setup
-color 0B
+title StreamVault Pro - Auto Repair
+color 0A
 
 echo ========================================
-echo    StreamVault - Audio/Video Fix
+echo    StreamVault - Steel-Stable Fix
 echo ========================================
 
-:: 1. Download yt-dlp if missing
-if not exist "yt-dlp.exe" (
-    echo [1/3] Downloading High-Speed Engine...
-    powershell -Command "Invoke-WebRequest https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe -OutFile yt-dlp.exe"
-)
+:: 1. Clean up old broken files
+if exist ffmpeg.zip del /q ffmpeg.zip
+if exist yt-dlp.exe del /q yt-dlp.exe
 
-:: 2. DOWNLOAD FFMPEG (The Sound Fix)
-if not exist "ffmpeg.exe" (
-    echo [2/3] Downloading Audio Merger (FFmpeg)...
-    echo This might take a minute, but it fixes the "No Sound" bug!
-    powershell -Command "Invoke-WebRequest https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip -OutFile ffmpeg.zip"
-    powershell -Command "Expand-Archive -Path ffmpeg.zip -DestinationPath temp_ffmpeg -Force"
-    copy "temp_ffmpeg\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" "ffmpeg.exe"
-    copy "temp_ffmpeg\ffmpeg-master-latest-win64-gpl\bin\ffprobe.exe" "ffprobe.exe"
-    del ffmpeg.zip
-    rmdir /s /q temp_ffmpeg
-)
+:: 2. Download yt-dlp.exe
+echo [1/3] Downloading High-Speed Engine...
+powershell -Command "Invoke-WebRequest https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe -OutFile yt-dlp.exe"
 
-echo [3/3] Launching Stable Web Interface...
+:: 3. Download FFmpeg (THE AUDIO FIX)
+echo [2/3] Downloading Audio Engine (FFmpeg)...
+echo Please wait, this is a large file and it FIXES THE SOUND.
+powershell -Command "Invoke-WebRequest https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip -OutFile ffmpeg.zip"
+
+echo [3/3] Extracting Audio Engine...
+powershell -Command "Expand-Archive -Path ffmpeg.zip -DestinationPath temp_ff -Force"
+
+:: Move the specific exe files to the main folder
+move /y "temp_ff\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" "ffmpeg.exe"
+move /y "temp_ff\ffmpeg-master-latest-win64-gpl\bin\ffprobe.exe" "ffprobe.exe"
+
+:: Cleanup
+rd /s /q temp_ff
+del /q ffmpeg.zip
+
+echo ----------------------------------------
+echo ✅ REPAIR COMPLETE: yt-dlp and ffmpeg are ready.
+echo 🚀 Launching Server...
+echo ----------------------------------------
 call npm install express cors --quiet
 start http://localhost:3000
 node server.js
