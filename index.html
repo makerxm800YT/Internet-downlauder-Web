@@ -661,10 +661,10 @@ body::before{
               <span class="dd-arrow">▾</span>
             </div>
             <div class="dd-panel" id="dd-mode-panel">
-              <div class="dd-option selected" onclick="pickDD('mode','Video')"><span class="dd-check">✓</span>Video</div>
-              <div class="dd-option" onclick="pickDD('mode','Audio Only')"><span class="dd-check"></span>Audio Only</div>
-              <div class="dd-option" onclick="pickDD('mode','Playlist — Video')"><span class="dd-check"></span>Playlist — Video</div>
-              <div class="dd-option" onclick="pickDD('mode','Playlist — Audio')"><span class="dd-check"></span>Playlist — Audio</div>
+              <div class="dd-option selected" data-val="Video" onclick="pickDD('mode','Video')"><span class="dd-check">✓</span>Video</div>
+              <div class="dd-option" data-val="Audio Only" onclick="pickDD('mode','Audio Only')"><span class="dd-check"></span>Audio Only</div>
+              <div class="dd-option" data-val="Playlist — Video" onclick="pickDD('mode','Playlist — Video')"><span class="dd-check"></span>Playlist — Video</div>
+              <div class="dd-option" data-val="Playlist — Audio" onclick="pickDD('mode','Playlist — Audio')"><span class="dd-check"></span>Playlist — Audio</div>
             </div>
           </div>
           <!-- Quality dropdown -->
@@ -675,12 +675,12 @@ body::before{
               <span class="dd-arrow">▾</span>
             </div>
             <div class="dd-panel" id="dd-quality-panel">
-              <div class="dd-option selected" onclick="pickDD('quality','Best (Max Quality)')"><span class="dd-check">✓</span>Best (Max Quality)</div>
-              <div class="dd-option" onclick="pickDD('quality','4K')"><span class="dd-check"></span>4K</div>
-              <div class="dd-option" onclick="pickDD('quality','1080p')"><span class="dd-check"></span>1080p</div>
-              <div class="dd-option" onclick="pickDD('quality','720p')"><span class="dd-check"></span>720p</div>
-              <div class="dd-option" onclick="pickDD('quality','480p')"><span class="dd-check"></span>480p</div>
-              <div class="dd-option" onclick="pickDD('quality','360p')"><span class="dd-check"></span>360p</div>
+              <div class="dd-option selected" data-val="Best (Max Quality)" onclick="pickDD('quality','Best (Max Quality)')"><span class="dd-check">✓</span>Best (Max Quality)</div>
+              <div class="dd-option" data-val="4K" onclick="pickDD('quality','4K')"><span class="dd-check"></span>4K</div>
+              <div class="dd-option" data-val="1080p" onclick="pickDD('quality','1080p')"><span class="dd-check"></span>1080p</div>
+              <div class="dd-option" data-val="720p" onclick="pickDD('quality','720p')"><span class="dd-check"></span>720p</div>
+              <div class="dd-option" data-val="480p" onclick="pickDD('quality','480p')"><span class="dd-check"></span>480p</div>
+              <div class="dd-option" data-val="360p" onclick="pickDD('quality','360p')"><span class="dd-check"></span>360p</div>
             </div>
           </div>
           <!-- Format dropdown -->
@@ -691,11 +691,11 @@ body::before{
               <span class="dd-arrow">▾</span>
             </div>
             <div class="dd-panel" id="dd-format-panel">
-              <div class="dd-option selected" onclick="pickDD('format','mp4')"><span class="dd-check">✓</span>mp4</div>
-              <div class="dd-option" onclick="pickDD('format','mkv')"><span class="dd-check"></span>mkv</div>
-              <div class="dd-option" onclick="pickDD('format','webm')"><span class="dd-check"></span>webm</div>
-              <div class="dd-option" onclick="pickDD('format','mp3')"><span class="dd-check"></span>mp3</div>
-              <div class="dd-option" onclick="pickDD('format','m4a')"><span class="dd-check"></span>m4a</div>
+              <div class="dd-option selected" data-val="mp4" onclick="pickDD('format','mp4')"><span class="dd-check">✓</span>mp4</div>
+              <div class="dd-option" data-val="mkv" onclick="pickDD('format','mkv')"><span class="dd-check"></span>mkv</div>
+              <div class="dd-option" data-val="webm" onclick="pickDD('format','webm')"><span class="dd-check"></span>webm</div>
+              <div class="dd-option" data-val="mp3" onclick="pickDD('format','mp3')"><span class="dd-check"></span>mp3</div>
+              <div class="dd-option" data-val="m4a" onclick="pickDD('format','m4a')"><span class="dd-check"></span>m4a</div>
             </div>
           </div>
         </div>
@@ -838,10 +838,10 @@ function closeAllDD(){
 function pickDD(name,val){
   _dd[name]=val;
   document.getElementById('dd-'+name+'-val').textContent=val;
-  // Update checkmarks
+  // Use data-val attribute for matching — never uses textContent which includes ✓
   const panel=document.getElementById('dd-'+name+'-panel');
   panel.querySelectorAll('.dd-option').forEach(opt=>{
-    const isSelected=opt.textContent.trim()===val;
+    const isSelected=opt.dataset.val===val;
     opt.classList.toggle('selected',isSelected);
     opt.querySelector('.dd-check').textContent=isSelected?'✓':'';
   });
@@ -948,22 +948,43 @@ function applyPrefs(p){
   if(p.mode)    pickDD('mode',p.mode);
   if(p.quality) pickDD('quality',p.quality);
   if(p.format)  pickDD('format',p.format);
-  const path=p.savepath||DPATH;
-  _savedPath=p.savepath||'';
-  ['path-txt','set-path-txt'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=path});
+  // Always restore save path — fall back to DPATH only for display, but keep real value
+  if(p.savepath && p.savepath.trim()){
+    _savedPath = p.savepath.trim();
+  }
+  const displayPath = _savedPath || DPATH;
+  ['path-txt','set-path-txt'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent=displayPath;
+  });
 }
 async function savePrefs(){
   if(!U)return;
-  const prefs={mode:_dd.mode,quality:_dd.quality,format:_dd.format,savepath:_savedPath||''};
-  U.prefs=prefs;localStorage.setItem('ytdl_u',JSON.stringify(U));
-  try{await fetch('/api/prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:U.email,prefs})})}catch{}
+  // Always include savepath — store actual value, not empty string
+  const prefs={
+    mode:    _dd.mode,
+    quality: _dd.quality,
+    format:  _dd.format,
+    savepath: _savedPath && _savedPath.trim() ? _savedPath.trim() : '',
+  };
+  U.prefs=prefs;
+  localStorage.setItem('ytdl_u',JSON.stringify(U));
+  try{
+    await fetch('/api/prefs',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({user:U.email,prefs})
+    });
+  }catch{}
 }
 function changePath(){
-  const np=prompt('Save folder path:',_savedPath||DPATH);
-  if(np&&np.trim()){
+  const np=prompt('Enter save folder path:',_savedPath||DPATH);
+  if(np && np.trim()){
     _savedPath=np.trim();
-    ['path-txt','set-path-txt'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=_savedPath});
-    savePrefs();toast('Save folder updated ✓','ok');
+    ['path-txt','set-path-txt'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.textContent=_savedPath;
+    });
+    savePrefs();
+    toast('Save folder updated ✓','ok');
   }
 }
 
@@ -1093,6 +1114,8 @@ async function loadHist(){
     const thumbHtml=item.thumb
       ? `<div class="hi-thumb"><img src="${esc(item.thumb)}" alt="" onerror="this.parentNode.innerHTML='<div class=hi-thumb-placeholder>🎬</div>'"/><span class="hi-thumb-badge">${esc((item.format||'mp4').toUpperCase())}</span></div>`
       : `<div class="hi-thumb"><div class="hi-thumb-placeholder">🎬</div><span class="hi-thumb-badge">${esc((item.format||'?').toUpperCase())}</span></div>`;
+    // Encode URL for safe use in onclick
+    const safeUrl = encodeURIComponent(item.url||'');
     row.innerHTML=`
       ${thumbHtml}
       <div class="hi-dot ${dot}"></div>
@@ -1100,12 +1123,27 @@ async function loadHist(){
         <div class="hi-title">${esc(item.title||item.url||'?')}</div>
         <div class="hi-meta">${esc(meta)}</div>
       </div>
-      <button class="pill outline" style="font-size:10px;flex-shrink:0" onclick="redl('${esc(item.url||'')}')">↺ Re-dl</button>
+      <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+        <button class="pill outline" style="font-size:10px" onclick="redl(decodeURIComponent('${safeUrl}'))">↺ Re-dl</button>
+        <button class="pill outline" style="font-size:10px;color:var(--red);border-color:rgba(255,0,0,.25)" onclick="removeHist(decodeURIComponent('${safeUrl}'),this)">🗑 Remove</button>
+      </div>
     `;
     el.appendChild(row);
   });
 }
 function redl(url){document.getElementById('url-inp').value=url;gotoTab('dl')}
+async function removeHist(url, btn){
+  btn.disabled=true; btn.textContent='…';
+  await fetch('/api/history/remove',{
+    method:'DELETE',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({user:U.email,url})
+  });
+  // Animate row out then reload
+  const row=btn.closest('.hist-item');
+  if(row){row.style.transition='opacity .25s,transform .25s';row.style.opacity='0';row.style.transform='translateX(20px)';setTimeout(()=>loadHist(),280);}
+  else loadHist();
+}
 async function clearHist(){
   if(!confirm('Delete all your download history?'))return;
   await fetch('/api/history/clear?user='+encodeURIComponent(U.email),{method:'DELETE'});
