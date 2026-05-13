@@ -120,6 +120,15 @@ def clear_history():
     jsave(HIST_FILE,[h for h in jload(HIST_FILE,[]) if h.get("user")!=email])
     return jsonify(ok=True)
 
+@app.route("/api/history/remove", methods=["DELETE"])
+def remove_history_item():
+    d=request.json or {}
+    email=d.get("user",""); url=d.get("url","")
+    hist=[h for h in jload(HIST_FILE,[])
+          if not(h.get("user")==email and h.get("url")==url)]
+    jsave(HIST_FILE,hist)
+    return jsonify(ok=True)
+
 # ── Download ──────────────────────────────────────────────────────────────────
 @app.route("/api/download", methods=["POST"])
 def start_download():
@@ -179,17 +188,22 @@ def start_download():
             job.update({"status":"done","progress":100,"done":True})
             job["log"].append({"t":f"✓ Saved to {savepath}","c":"ok"})
             hist=jload(HIST_FILE,[])
-            hist.append({"user":user,"url":url,"title":title,"thumb":thumb,"mode":mode,
-                         "quality":quality,"format":fmt,"status":"done",
-                         "date":datetime.datetime.now().strftime("%Y-%m-%d %H:%M")})
+            # Update existing entry for same user+url, don't duplicate
+            entry={"user":user,"url":url,"title":title,"thumb":thumb,"mode":mode,
+                   "quality":quality,"format":fmt,"status":"done",
+                   "date":datetime.datetime.now().strftime("%Y-%m-%d %H:%M")}
+            hist=[h for h in hist if not(h.get("user")==user and h.get("url")==url)]
+            hist.append(entry)
             jsave(HIST_FILE,hist)
         except Exception as e:
             job.update({"status":"error","error":str(e),"done":True})
             job["log"].append({"t":f"✗ {e}","c":"err"})
             hist=jload(HIST_FILE,[])
-            hist.append({"user":user,"url":url,"title":title,"thumb":thumb,"mode":mode,
-                         "quality":quality,"format":fmt,"status":"error",
-                         "date":datetime.datetime.now().strftime("%Y-%m-%d %H:%M")})
+            entry={"user":user,"url":url,"title":title,"thumb":thumb,"mode":mode,
+                   "quality":quality,"format":fmt,"status":"error",
+                   "date":datetime.datetime.now().strftime("%Y-%m-%d %H:%M")}
+            hist=[h for h in hist if not(h.get("user")==user and h.get("url")==url)]
+            hist.append(entry)
             jsave(HIST_FILE,hist)
 
     threading.Thread(target=run,daemon=True).start()
