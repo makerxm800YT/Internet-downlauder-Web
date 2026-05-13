@@ -1,7 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
-  <!-- Red rounded background -->
-  <rect width="512" height="512" rx="128" fill="#FF0033"/>
-  
-  <!-- White Play Button -->
-  <path d="M190 165 L380 256 L190 347 Z" fill="#FFFFFF"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff2525"/>
+      <stop offset="100%" stop-color="#b80000"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="outer-shadow">
+      <feDropShadow dx="0" dy="10" stdDeviation="20" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="play-shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <clipPath id="clip"><rect width="256" height="256" rx="60" ry="60"/></clipPath>
+  </defs>
+
+  <!-- Shadow layer -->
+  <rect width="256" height="256" rx="60" ry="60" fill="url(#g1)" filter="url(#outer-shadow)"/>
+
+  <!-- Main background -->
+  <rect width="256" height="256" rx="60" ry="60" fill="url(#g1)"/>
+
+  <!-- Inner subtle dark vignette bottom -->
+  <rect width="256" height="256" rx="60" ry="60" fill="url(#g2)" clip-path="url(#clip)"/>
+
+  <!-- Subtle border highlight -->
+  <rect x="1" y="1" width="254" height="254" rx="59" ry="59"
+        fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+
+  <!-- Play triangle with shadow -->
+  <polygon points="96,68 96,188 192,128" fill="white" filter="url(#play-shadow)"/>
 </svg>
