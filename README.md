@@ -1,50 +1,111 @@
 <div align="center">
 
-# YTDL - YouTube Downloader
+<img src="favicon.svg" width="90" alt="YTDL Logo"/>
 
-![YTDL Banner](https://via.placeholder.com/1200x400/111111/FF0033?text=YTDL+-+Download+Anything.+Zero+Limits.)
+# YTDL — YouTube Downloader
 
 **Download Anything. Zero Limits.**
 
-**4K • 1080p • Audio • Playlists • Fast • Unlimited**
+[![Free](https://img.shields.io/badge/Price-Free-brightgreen?style=flat-square)](.)
+[![No Ads](https://img.shields.io/badge/Ads-None-red?style=flat-square)](.)
+[![Private](https://img.shields.io/badge/Data-100%25%20Local-blue?style=flat-square)](.)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-yellow?style=flat-square)](https://python.org)
+
+*A beautiful, fast, local web app for downloading YouTube videos at maximum quality.*
+*Runs in your browser. No subscriptions. No limits. No ads. Forever free.*
 
 </div>
 
-<br>
-
-![GitHub stars](https://img.shields.io/github/stars/Makerxm800/YTDL?style=for-the-badge)
-![License](https://img.shields.io/github/license/Makerxm800/YTDL?style=for-the-badge)
-![Version](https://img.shields.io/github/v/release/Makerxm800/YTDL?style=for-the-badge)
+---
 
 ## ✨ Features
 
-- **Unlimited Downloads** — No daily limits, no restrictions
-- **Highest Quality Support** — Up to 4K, 8K & 1080p
-- **Multiple Formats** — MP4, MP3, M4A, WebM & more
-- **Playlist & Shorts Support**
-- **Always with Sound** — Video + Audio merged automatically
-- **Fast Downloads** with progress tracking
-- **Clean & Modern Dark UI**
-- **Save to Custom Folder**
+| | What it does |
+|---|---|
+| ⬇ | **Max Quality Downloads** — up to 4K, video + audio merged automatically |
+| 🔊 | **Always with Sound** — FFmpeg is bundled, zero setup needed |
+| 🎵 | **Audio Only** — MP3 / M4A at 320kbps |
+| 📋 | **Full Playlist Support** — download entire playlists in one click |
+| 🖼 | **Thumbnails in History** — see the video preview for every past download |
+| 🔐 | **Accounts** — Email or Google sign-in, settings saved per user |
+| 🕘 | **Download History** — re-download any past video in one click |
+| 🎛 | **Custom Dropdowns** — animated rounded UI, not boring system selects |
+| ✨ | **Smooth Animations** — logo launch, hero text, page transitions |
+| 🌐 | **Network Sharing** — anyone on your WiFi can use it from their device |
+| 🔄 | **Self-Updating** — update yt-dlp from inside the app |
+| ⭐ | **Rate Us** — built-in star rating |
 
-## 📸 Preview
-
-![App Preview](<img width="1920" height="951" alt="YTDL Preview" src="https://github.com/user-attachments/assets/4b2e636c-e23e-4c4b-b826-910e206888e1" />
-)
-
-*(Replace with actual screenshot)
-
+---
 
 ## 🚀 Quick Start
 
-### Option 1: Download Release (Recommended)
-1. Go to [Releases](https://github.com/Makerxm800/YTDL/releases)
-2. Download the latest `.exe` (Windows)
-3. Run and enjoy!
+### Windows — 2 steps
 
-### Option 2: Run from Source
+1. Install Python → **[python.org/downloads](https://python.org/downloads)**
+   > ⚠️ Check **"Add Python to PATH"** during install — required!
+
+2. Double-click **`START - Click Here.bat`**
+
+Browser opens at `http://localhost:5000` automatically. ✅
+
+### Mac / Linux
+
 ```bash
-git clone https://github.com/Makerxm800/YTDL.git
-cd YTDL
-npm install
-npm start
+pip install flask yt-dlp static-ffmpeg
+python app.py
+```
+
+Then open **[http://localhost:5000](http://localhost:5000)**
+
+---
+
+## 📁 Project Files
+
+```
+📦 ytdl/
+ ┣ 📄 app.py                   ← Python backend (Flask server + downloader)
+ ┣ 📄 index.html               ← Full web UI — everything in one file
+ ┣ 🖼  favicon.svg              ← Premium app icon
+ ┣ 📄 START - Click Here.bat   ← Windows one-click launcher
+ ┗ 📄 README.md
+```
+
+> **Note:** `app.js` is **not needed** — delete it if you have it. All JavaScript is inside `index.html`.
+
+---
+
+## 🌐 Use on Your Local Network
+
+When you start the app, the terminal shows two URLs:
+
+```
+▸ Local    http://localhost:5000       ← you on this PC
+▸ Network  http://192.168.x.x:5000    ← anyone on your WiFi
+```
+
+Share the **Network URL** with friends on the same WiFi — they can download from their phone or laptop, no install needed.
+
+---
+
+## 🔒 100% Private
+
+- All accounts, history, and preferences stored in `~/.ytdl_app/` on **your machine only**
+- Nothing is uploaded or sent to any external server
+- No telemetry, no tracking, no ads — ever
+
+---
+
+## 🛠 Built With
+
+| Tool | Purpose |
+|---|---|
+| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | YouTube downloading engine |
+| [Flask](https://flask.palletsprojects.com/) | Local web server |
+| [static-ffmpeg](https://pypi.org/project/static-ffmpeg/) | Bundled audio+video merging |
+| Vanilla HTML/CSS/JS | UI — no frameworks, no bloat |
+
+---
+
+## 📄 License
+
+MIT — free to use, modify, and share.
