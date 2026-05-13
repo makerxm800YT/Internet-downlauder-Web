@@ -1,1161 +1,249 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>YTDL — YouTube Downloader</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#080808;--bg2:#0d0d0d;--card:#141414;--card2:#1a1a1a;
-  --s3:#202020;--s4:#282828;--bdr:#1e1e1e;--bdr2:#2a2a2a;
-  --red:#ff0000;--red2:#cc0000;--redglow:rgba(255,0,0,.18);--redsoft:rgba(255,0,0,.08);
-  --grn:#00e676;--ylw:#ffab40;--blue:#448aff;
-  --fg:#f5f5f5;--fg2:#888;--fg3:#444;--fg4:#1c1c1c;
-  --r:14px;--rpill:999px;
-}
-html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--fg);overflow:hidden}
-::selection{background:var(--red);color:#fff}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--s4);border-radius:var(--rpill)}
-
-/* ── Grid bg ── */
-body::before{
-  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:linear-gradient(rgba(255,0,0,.025) 1px,transparent 1px),
-                   linear-gradient(90deg,rgba(255,0,0,.025) 1px,transparent 1px);
-  background-size:44px 44px;
-  mask-image:radial-gradient(ellipse 90% 50% at 50% 0%,black,transparent);
-}
-.blob{position:fixed;width:700px;height:700px;border-radius:50%;
-  background:radial-gradient(circle,rgba(255,0,0,.07) 0%,transparent 70%);
-  pointer-events:none;z-index:0;top:-260px;left:50%;transform:translateX(-50%);
-  animation:blob 7s ease-in-out infinite;}
-@keyframes blob{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.12)}}
-
-#app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column}
-
-/* ════════════════════════════════════
-   LOGO ICON — Animated
-════════════════════════════════════ */
-.ytdl-icon{
-  position:relative;display:inline-flex;align-items:center;justify-content:center;
-  flex-shrink:0;
-}
-.ytdl-icon svg{display:block}
-.ytdl-icon.launch svg{animation:iconLaunch .7s cubic-bezier(.16,1,.3,1) both}
-@keyframes iconLaunch{
-  0%  {transform:scale(0) rotate(-20deg);opacity:0}
-  60% {transform:scale(1.15) rotate(4deg);opacity:1}
-  80% {transform:scale(.94) rotate(-2deg)}
-  100%{transform:scale(1) rotate(0deg)}
-}
-.ytdl-icon .ring{
-  position:absolute;inset:-4px;border-radius:50%;
-  border:2px solid rgba(255,0,0,.5);
-  animation:iconRing 2s ease-out forwards;
-  opacity:0;
-}
-@keyframes iconRing{
-  0%  {transform:scale(.8);opacity:.8}
-  100%{transform:scale(1.6);opacity:0}
-}
-
-/* ════════════════════════════════════
-   LOGIN
-════════════════════════════════════ */
-#login-screen{
-  position:fixed;inset:0;z-index:100;display:flex;align-items:center;
-  justify-content:center;background:var(--bg);
-}
-.login-wrap{width:400px;animation:fadeUp .55s cubic-bezier(.16,1,.3,1)}
-@keyframes fadeUp{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:none}}
-
-.login-logo{text-align:center;margin-bottom:28px}
-.logo-row{display:inline-flex;align-items:center;gap:10px;margin-bottom:6px}
-.logo-name{font-family:'Unbounded',sans-serif;font-size:22px;letter-spacing:-.02em;
-  animation:logoNameIn .6s .15s cubic-bezier(.16,1,.3,1) both}
-@keyframes logoNameIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
-.logo-sub{font-size:11px;color:var(--fg3);letter-spacing:.04em;
-  animation:fadeIn .5s .4s both}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-
-.auth-card{
-  background:var(--card);border:1px solid var(--bdr2);border-radius:18px;
-  padding:26px 26px 22px;box-shadow:0 28px 80px rgba(0,0,0,.65);
-  animation:cardIn .5s .1s cubic-bezier(.16,1,.3,1) both;
-}
-@keyframes cardIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-.auth-heading{font-family:'Unbounded',sans-serif;font-size:14px;margin-bottom:20px}
-
-.field{margin-bottom:11px}
-.field label{display:block;font-size:9px;font-weight:700;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--fg3);margin-bottom:5px}
-.field input{
-  width:100%;background:var(--s3);border:1px solid var(--bdr2);border-radius:10px;
-  padding:10px 13px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--fg);
-  outline:none;transition:border .18s,box-shadow .18s;
-}
-.field input:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft)}
-.field input::placeholder{color:var(--fg3)}
-
-.auth-err{font-size:11px;color:var(--red);min-height:16px;margin:5px 0 8px;display:none}
-.auth-err.show{display:block;animation:shake .3s}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
-
-.btn-red{
-  width:100%;padding:12px;border:none;border-radius:var(--rpill);
-  background:linear-gradient(135deg,#ff2222,#cc0000);color:#fff;
-  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
-  cursor:pointer;transition:all .18s;margin-top:4px;
-  box-shadow:0 4px 20px rgba(255,0,0,.3);
-}
-.btn-red:hover{transform:translateY(-1px);box-shadow:0 8px 32px rgba(255,0,0,.45)}
-.btn-red:active{transform:scale(.98)}
-
-.or-row{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--fg3);font-size:11px}
-.or-row::before,.or-row::after{content:"";flex:1;height:1px;background:var(--bdr2)}
-
-.btn-google{
-  width:100%;padding:10px;border:1px solid var(--bdr2);border-radius:var(--rpill);
-  background:var(--s3);color:var(--fg);
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
-  cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;
-}
-.btn-google:hover{background:var(--s4);border-color:var(--blue)}
-
-.auth-switch{text-align:center;margin-top:14px;font-size:11px;color:var(--fg3)}
-.auth-switch a{color:var(--red);cursor:pointer;font-weight:600}
-
-/* ════════════════════════════════════
-   MODALS
-════════════════════════════════════ */
-.modal-bg{
-  position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.8);
-  backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;
-}
-.modal{
-  background:var(--card);border:1px solid var(--bdr2);border-radius:16px;
-  padding:24px 22px 20px;width:330px;
-  box-shadow:0 24px 80px rgba(0,0,0,.7);
-  animation:fadeUp .3s cubic-bezier(.16,1,.3,1);
-}
-.modal h3{font-family:'Unbounded',sans-serif;font-size:13px;margin-bottom:5px}
-.modal p{font-size:11px;color:var(--fg3);margin-bottom:14px}
-
-/* ════════════════════════════════════
-   MAIN APP
-════════════════════════════════════ */
-#main-app{display:none;flex-direction:column;height:100vh}
-#main-app.on{display:flex}
-
-/* Topbar */
-.topbar{
-  background:rgba(10,10,10,.92);backdrop-filter:blur(24px);
-  border-bottom:1px solid var(--bdr);height:52px;
-  display:flex;align-items:center;padding:0 18px;gap:10px;
-  flex-shrink:0;z-index:10;
-}
-.tbar-logo{display:flex;align-items:center;gap:8px;margin-right:6px}
-.tbar-name{
-  font-family:'Unbounded',sans-serif;font-size:12px;letter-spacing:.02em;
-  animation:none;
-}
-.tbar-name.animIn{animation:logoNameIn .5s cubic-bezier(.16,1,.3,1)}
-
-/* ── Pill tabs ── */
-.tabs{display:flex;gap:3px;margin-left:4px}
-.tab{
-  padding:6px 14px;border:none;border-radius:var(--rpill);
-  background:transparent;color:var(--fg3);
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
-  cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:5px;
-}
-.tab:hover{background:var(--s3);color:var(--fg)}
-.tab.active{
-  background:var(--redsoft);color:var(--red);font-weight:600;
-  border:1px solid rgba(255,0,0,.18);
-  box-shadow:0 0 12px rgba(255,0,0,.12);
-}
-
-/* User chip */
-.user-chip{
-  margin-left:auto;display:flex;align-items:center;gap:8px;
-  background:var(--card);border:1px solid var(--bdr2);
-  border-radius:var(--rpill);padding:4px 12px 4px 4px;
-}
-.chip-av{
-  width:26px;height:26px;border-radius:50%;background:var(--red);
-  display:flex;align-items:center;justify-content:center;
-  font-family:'Unbounded',sans-serif;font-size:10px;color:#fff;
-}
-.chip-name{font-size:11px;font-weight:600;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chip-so{font-size:10px;color:var(--fg3);cursor:pointer;padding:2px 6px;
-  border-radius:var(--rpill);background:none;border:none;
-  font-family:'DM Sans',sans-serif;transition:all .15s;}
-.chip-so:hover{background:var(--s3);color:var(--red)}
-
-/* Pages */
-.pages{flex:1;overflow:hidden;position:relative}
-.page{position:absolute;inset:0;overflow-y:auto;padding:20px;display:none}
-.page.on{display:block;animation:pageIn .28s cubic-bezier(.16,1,.3,1)}
-@keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-
-/* ════════════════════════════════════
-   HERO — Animated text
-════════════════════════════════════ */
-.dl-hero{text-align:center;padding:24px 0 18px}
-.hero-title{
-  font-family:'Unbounded',sans-serif;font-size:22px;font-weight:900;
-  line-height:1.2;overflow:hidden;
-}
-.hero-word{
-  display:inline-block;
-  background:linear-gradient(135deg,#fff 0%,#ff6666 55%,#ff0000 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  opacity:0;transform:translateY(24px);
-  animation:wordIn .6s cubic-bezier(.16,1,.3,1) forwards;
-}
-.hero-word:nth-child(1){animation-delay:.05s}
-.hero-word:nth-child(2){animation-delay:.12s}
-.hero-word:nth-child(3){animation-delay:.19s;margin-left:.3em}
-.hero-word:nth-child(4){animation-delay:.26s}
-@keyframes wordIn{to{opacity:1;transform:none}}
-
-.hero-sub{
-  font-size:11px;color:var(--fg3);margin-top:8px;letter-spacing:.02em;
-  opacity:0;animation:fadeIn .5s .5s forwards;
-}
-.hero-sub span{
-  display:inline-block;opacity:0;
-  animation:chipIn .35s cubic-bezier(.16,1,.3,1) forwards;
-}
-.hero-sub span:nth-child(1){animation-delay:.55s}
-.hero-sub span:nth-child(2){animation-delay:.68s}
-.hero-sub span:nth-child(3){animation-delay:.81s}
-.hero-sub span:nth-child(4){animation-delay:.94s}
-.hero-sub span:nth-child(5){animation-delay:1.07s}
-@keyframes chipIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-
-/* ════════════════════════════════════
-   CARDS
-════════════════════════════════════ */
-.card{
-  background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);
-  padding:16px 18px;margin-bottom:12px;transition:border-color .2s;
-}
-.card:focus-within{border-color:rgba(255,0,0,.25)}
-.clabel{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--fg3);margin-bottom:10px}
-
-/* URL */
-.url-row{display:flex;gap:6px;align-items:center}
-.url-inp{
-  flex:1;background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);
-  padding:9px 16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--fg);
-  outline:none;transition:border .18s,box-shadow .18s;
-}
-.url-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft)}
-.url-inp::placeholder{color:var(--fg3)}
-
-/* Pills */
-.pill{
-  padding:8px 14px;border:none;border-radius:var(--rpill);
-  background:var(--s3);color:var(--fg2);
-  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;
-  cursor:pointer;transition:all .15s;white-space:nowrap;
-  display:inline-flex;align-items:center;gap:5px;
-}
-.pill:hover{background:var(--s4);color:var(--fg)}
-.pill.outline{background:transparent;border:1px solid var(--bdr2)}
-.pill.outline:hover{border-color:rgba(255,0,0,.4);color:var(--red)}
-.pill:active{transform:scale(.96)}
-
-/* ════════════════════════════════════
-   CUSTOM DROPDOWNS
-════════════════════════════════════ */
-.opts-row{display:flex;gap:14px;flex-wrap:wrap}
-.opt-group{display:flex;flex-direction:column;gap:5px;position:relative}
-.opt-label{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
-
-/* The trigger button */
-.dd-trigger{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);
-  padding:8px 14px;min-width:140px;
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--fg);
-  cursor:pointer;transition:all .18s;user-select:none;
-}
-.dd-trigger:hover{background:var(--s4);border-color:var(--bdr)}
-.dd-trigger.open{border-color:rgba(255,0,0,.4);box-shadow:0 0 0 3px var(--redsoft);background:var(--s4)}
-.dd-arrow{
-  width:16px;height:16px;display:flex;align-items:center;justify-content:center;
-  color:var(--fg3);transition:transform .22s cubic-bezier(.16,1,.3,1);flex-shrink:0;
-}
-.dd-trigger.open .dd-arrow{transform:rotate(180deg)}
-
-/* Dropdown panel */
-.dd-panel{
-  position:absolute;top:calc(100% + 6px);left:0;min-width:100%;
-  background:var(--card2);border:1px solid var(--bdr2);border-radius:12px;
-  padding:5px;z-index:50;
-  box-shadow:0 16px 48px rgba(0,0,0,.6);
-  opacity:0;transform:translateY(-8px) scale(.97);
-  pointer-events:none;
-  transition:opacity .2s cubic-bezier(.16,1,.3,1),
-             transform .2s cubic-bezier(.16,1,.3,1);
-  transform-origin:top left;
-}
-.dd-panel.open{opacity:1;transform:none;pointer-events:all}
-
-/* Option rows */
-.dd-option{
-  display:flex;align-items:center;gap:8px;
-  padding:8px 12px;border-radius:8px;
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
-  color:var(--fg2);cursor:pointer;transition:all .12s;white-space:nowrap;
-}
-.dd-option:hover{background:var(--s3);color:var(--fg)}
-.dd-option.selected{
-  background:var(--redsoft);color:var(--red);font-weight:600;
-}
-.dd-option .dd-check{
-  width:14px;height:14px;border-radius:50%;
-  border:1.5px solid var(--fg3);
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;transition:all .15s;font-size:8px;
-}
-.dd-option.selected .dd-check{
-  background:var(--red);border-color:var(--red);color:#fff;
-}
-
-/* ════════════════════════════════════
-   PATH BAR
-════════════════════════════════════ */
-.path-bar{
-  display:flex;align-items:center;gap:8px;
-  background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);
-  padding:8px 14px;cursor:pointer;transition:border .18s;
-}
-.path-bar:hover{border-color:rgba(255,0,0,.3)}
-.path-text{flex:1;font-family:'DM Mono',monospace;font-size:11px;color:var(--fg2);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-/* ════════════════════════════════════
-   DOWNLOAD BUTTON
-════════════════════════════════════ */
-.dl-btn{
-  padding:13px 30px;border:none;border-radius:var(--rpill);
-  background:linear-gradient(135deg,#ff2222,#cc0000);color:#fff;
-  font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;
-  cursor:pointer;transition:all .2s;
-  display:inline-flex;align-items:center;gap:8px;
-  box-shadow:0 4px 24px rgba(255,0,0,.35);
-}
-.dl-btn:hover{transform:translateY(-2px);box-shadow:0 10px 40px rgba(255,0,0,.5)}
-.dl-btn:active{transform:scale(.98)}
-.dl-btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important;box-shadow:none!important}
-.dl-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-
-/* Cancel with icon */
-.cancel-btn{
-  padding:10px 16px;border:1px solid var(--bdr2);border-radius:var(--rpill);
-  background:transparent;color:var(--fg3);
-  font-family:'DM Sans',sans-serif;font-size:12px;
-  cursor:pointer;transition:all .15s;
-  display:inline-flex;align-items:center;gap:6px;
-}
-.cancel-btn:hover{border-color:rgba(255,0,0,.4);color:var(--red);background:var(--redsoft)}
-.cancel-icon{font-size:14px;line-height:1}
-
-/* ════════════════════════════════════
-   PROGRESS
-════════════════════════════════════ */
-.prog-wrap{margin:14px 0 6px}
-.prog-track{height:4px;background:var(--s3);border-radius:var(--rpill);overflow:visible;position:relative}
-.prog-fill{
-  height:100%;width:0;
-  background:linear-gradient(90deg,#ff0000,#ff6666);
-  border-radius:var(--rpill);transition:width .35s ease;
-  box-shadow:0 0 12px rgba(255,0,0,.6);position:relative;
-}
-.prog-dot{
-  position:absolute;right:-5px;top:-4px;width:12px;height:12px;
-  background:#fff;border-radius:50%;border:2px solid var(--red);
-  box-shadow:0 0 10px rgba(255,0,0,.9);
-  opacity:0;transition:opacity .2s;
-}
-.prog-fill.active .prog-dot{opacity:1}
-.prog-meta{display:flex;justify-content:space-between;margin-top:6px}
-.prog-meta span{font-size:10px;color:var(--fg3);font-family:'DM Mono',monospace}
-
-/* Now playing card */
-.now-card{
-  display:none;background:var(--s3);border:1px solid var(--bdr2);
-  border-radius:12px;padding:10px;margin-bottom:10px;
-  flex-direction:row;align-items:center;gap:10px;
-}
-.now-card.show{display:flex;animation:fadeUp .3s cubic-bezier(.16,1,.3,1)}
-.now-thumb{width:80px;height:45px;border-radius:7px;object-fit:cover;
-  background:var(--bg2);flex-shrink:0}
-.now-info{flex:1;min-width:0}
-.now-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.now-status{font-size:10px;color:var(--fg3);margin-top:2px;font-family:'DM Mono',monospace}
-
-.stat-row{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
-.stat-txt{font-size:11px;min-height:18px}
-.stat-txt.yellow{color:var(--ylw)}.stat-txt.green{color:var(--grn)}.stat-txt.red{color:var(--red)}
-.stat-spd{font-size:10px;font-family:'DM Mono',monospace;color:var(--fg3)}
-
-.console{
-  background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;
-  padding:10px 12px;font-family:'DM Mono',monospace;font-size:10px;
-  color:var(--fg3);height:86px;overflow-y:auto;margin-top:10px;line-height:1.8;
-}
-.log-ok{color:var(--grn)}.log-err{color:var(--red)}.log-dim{color:var(--fg3)}.log-ylw{color:var(--ylw)}
-
-/* ════════════════════════════════════
-   HISTORY
-════════════════════════════════════ */
-.hist-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.hist-hdr h2{font-family:'Unbounded',sans-serif;font-size:14px}
-.empty-state{text-align:center;padding:60px 20px;color:var(--fg3)}
-.empty-ico{font-size:36px;margin-bottom:10px;opacity:.35}
-
-.hist-item{
-  background:var(--card);border:1px solid var(--bdr);border-radius:12px;
-  padding:10px 12px;margin-bottom:8px;
-  display:flex;align-items:center;gap:12px;
-  transition:all .15s;
-  animation:slideIn .35s cubic-bezier(.16,1,.3,1) both;
-}
-.hist-item:hover{border-color:var(--bdr2);transform:translateX(3px);background:var(--card2)}
-@keyframes slideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
-
-/* Thumbnail in history */
-.hi-thumb{
-  width:88px;height:50px;border-radius:8px;object-fit:cover;
-  background:var(--s3);flex-shrink:0;display:flex;align-items:center;
-  justify-content:center;overflow:hidden;position:relative;
-}
-.hi-thumb img{width:100%;height:100%;object-fit:cover;border-radius:8px}
-.hi-thumb-placeholder{font-size:18px;opacity:.4}
-.hi-thumb-badge{
-  position:absolute;bottom:3px;right:3px;
-  background:rgba(0,0,0,.75);color:#fff;
-  font-size:8px;font-family:'DM Mono',monospace;
-  padding:1px 5px;border-radius:4px;
-}
-.hi-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:2px}
-.hi-dot.ok{background:var(--grn);box-shadow:0 0 6px var(--grn)}
-.hi-dot.err{background:var(--red)}
-.hi-info{flex:1;min-width:0}
-.hi-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hi-meta{font-size:9px;color:var(--fg3);margin-top:3px;font-family:'DM Mono',monospace}
-
-/* ════════════════════════════════════
-   SETTINGS
-════════════════════════════════════ */
-.settings-grid{display:grid;gap:12px}
-.acc-row{display:flex;align-items:center;gap:12px}
-.acc-av{
-  width:40px;height:40px;border-radius:50%;background:var(--red);flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  font-family:'Unbounded',sans-serif;font-size:16px;color:#fff;
-  box-shadow:0 0 18px rgba(255,0,0,.35);
-}
-.acc-name{font-size:13px;font-weight:600}.acc-email{font-size:10px;color:var(--fg3);margin-top:2px;font-family:'DM Mono',monospace}
-.acc-method{font-size:9px;color:var(--fg3);margin-top:1px}
-.sys-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--fg4)}
-.sys-row:last-child{border-bottom:none}
-.sys-key{font-size:11px;color:var(--fg2)}.sys-val{font-size:10px;color:var(--fg3);font-family:'DM Mono',monospace}
-.badge{padding:2px 9px;border-radius:var(--rpill);font-size:10px;font-weight:600}
-.badge.ok{background:rgba(0,230,118,.1);color:var(--grn)}.badge.err{background:var(--redsoft);color:var(--red)}
-.rate-card{
-  background:linear-gradient(135deg,rgba(255,0,0,.07) 0%,var(--card) 60%);
-  border:1px solid rgba(255,0,0,.15);border-radius:var(--r);padding:16px 18px;
-  display:flex;align-items:center;gap:14px;
-}
-.rate-ico{font-size:22px}.rate-info h3{font-family:'Unbounded',sans-serif;font-size:11px;margin-bottom:3px}
-.rate-info p{font-size:10px;color:var(--fg3)}
-.rate-btn{margin-left:auto;padding:8px 18px;border:none;border-radius:var(--rpill);
-  background:var(--red);color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
-  cursor:pointer;transition:all .18s;box-shadow:0 2px 12px rgba(255,0,0,.3);}
-.rate-btn:hover{background:#ff1a1a;transform:translateY(-1px)}
-.star-row{display:flex;gap:6px;justify-content:center;margin:12px 0}
-.star{font-size:26px;cursor:pointer;color:var(--fg3);transition:all .12s;user-select:none}
-.star.lit{color:#ffab40;text-shadow:0 0 10px rgba(255,171,64,.6)}
-.star:hover{transform:scale(1.15)}
-.upd-res{margin-top:8px;font-size:11px;padding:7px 11px;border-radius:8px;
-  background:var(--s3);display:none}
-.upd-res.show{display:block}.upd-res.ok{color:var(--grn)}.upd-res.fail{color:var(--red)}
-
-/* ════════════════════════════════════
-   TOASTS
-════════════════════════════════════ */
-#toasts{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:6px}
-.toast{
-  background:var(--card2);border:1px solid var(--bdr2);border-radius:10px;
-  padding:10px 16px;font-size:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);
-  animation:toastIn .3s cubic-bezier(.16,1,.3,1);max-width:280px;
-}
-@keyframes toastIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
-.toast.ok{border-color:rgba(0,230,118,.3);color:var(--grn)}.toast.err{border-color:rgba(255,0,0,.3);color:var(--red)}
-</style>
-</head>
-<body>
-<div class="blob"></div>
-<div id="app">
-
-<!-- ════════ LOGIN ════════ -->
-<div id="login-screen">
-  <div class="login-wrap">
-    <div class="login-logo">
-      <div class="logo-row">
-        <div class="ytdl-icon launch" id="login-icon">
-          <div class="ring"></div>
-          <svg width="42" height="42" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#ff2020"/><stop offset="100%" stop-color="#cc0000"/>
-              </linearGradient>
-              <linearGradient id="shine1" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#fff" stop-opacity=".18"/>
-                <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <rect width="64" height="64" rx="16" fill="url(#lg1)"/>
-            <rect width="64" height="32" rx="16" fill="url(#shine1)"/>
-            <polygon points="24,16 24,48 48,32" fill="white" filter="drop-shadow(0 2px 5px rgba(0,0,0,.3))"/>
-          </svg>
-        </div>
-        <span class="logo-name">YTDL</span>
-      </div>
-      <div class="logo-sub">YouTube Downloader · Free · Private · Unlimited</div>
-    </div>
-    <div class="auth-card">
-      <div class="auth-heading" id="auth-head">Welcome back</div>
-      <div id="f-name" class="field" style="display:none">
-        <label>Your Name</label>
-        <input id="inp-name" type="text" placeholder="John Doe"/>
-      </div>
-      <div class="field">
-        <label>Email Address</label>
-        <input id="inp-email" type="email" placeholder="you@example.com"/>
-      </div>
-      <div class="field">
-        <label>Password</label>
-        <input id="inp-pw" type="password" placeholder="••••••••"/>
-      </div>
-      <div id="f-cpw" class="field" style="display:none">
-        <label>Confirm Password</label>
-        <input id="inp-cpw" type="password" placeholder="••••••••"/>
-      </div>
-      <div class="auth-err" id="auth-err"></div>
-      <button class="btn-red" id="auth-btn" onclick="doAuth()">Sign In</button>
-      <div class="or-row">or</div>
-      <button class="btn-google" onclick="showGDlg()">🔵 Continue with Google</button>
-      <div class="auth-switch">
-        <span id="sw-txt">No account?</span>
-        <a onclick="toggleAuthMode()"> Create one</a>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ════════ GOOGLE MODAL ════════ -->
-<div class="modal-bg" id="gdlg" style="display:none" onclick="if(event.target===this)this.style.display='none'">
-  <div class="modal">
-    <h3>🔵 Continue with Google</h3>
-    <p>Enter your Gmail to sign in or create an account</p>
-    <div class="field"><label>Gmail Address</label><input id="g-email" type="email" placeholder="you@gmail.com"/></div>
-    <div class="auth-err" id="g-err"></div>
-    <button class="btn-red" onclick="doGoogle()" style="margin-top:8px">Continue →</button>
-  </div>
-</div>
-
-<!-- ════════ RATE MODAL ════════ -->
-<div class="modal-bg" id="ratedlg" style="display:none" onclick="if(event.target===this)this.style.display='none'">
-  <div class="modal">
-    <h3>⭐ Rate YTDL</h3>
-    <p>How would you rate your experience?</p>
-    <div class="star-row" id="stars">
-      <span class="star" onclick="setStar(1)" onmouseover="hoverStar(1)" onmouseout="resetStar()">★</span>
-      <span class="star" onclick="setStar(2)" onmouseover="hoverStar(2)" onmouseout="resetStar()">★</span>
-      <span class="star" onclick="setStar(3)" onmouseover="hoverStar(3)" onmouseout="resetStar()">★</span>
-      <span class="star" onclick="setStar(4)" onmouseover="hoverStar(4)" onmouseout="resetStar()">★</span>
-      <span class="star" onclick="setStar(5)" onmouseover="hoverStar(5)" onmouseout="resetStar()">★</span>
-    </div>
-    <textarea class="field" style="width:100%;background:var(--s3);border:1px solid var(--bdr2);border-radius:10px;padding:8px 12px;color:var(--fg);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;resize:none;margin-top:4px" rows="2" id="rate-fb" placeholder="Tell us what you think (optional)…"></textarea>
-    <button class="btn-red" onclick="submitRate()" style="margin-top:10px">Submit Rating</button>
-  </div>
-</div>
-
-<!-- ════════ MAIN APP ════════ -->
-<div id="main-app">
-  <div class="topbar">
-    <div class="tbar-logo">
-      <div class="ytdl-icon" id="tbar-icon">
-        <svg width="28" height="28" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#ff2020"/><stop offset="100%" stop-color="#cc0000"/>
-            </linearGradient>
-          </defs>
-          <rect width="64" height="64" rx="14" fill="url(#lg2)"/>
-          <rect width="64" height="32" rx="14" fill="white" fill-opacity=".1"/>
-          <polygon points="24,16 24,48 48,32" fill="white"/>
-        </svg>
-      </div>
-      <span class="tbar-name" id="tbar-name">YTDL</span>
-    </div>
-    <div class="tabs">
-      <button class="tab active" id="tab-dl" onclick="gotoTab('dl')"><span>⬇</span> Download</button>
-      <button class="tab" id="tab-hist" onclick="gotoTab('hist')"><span>🕘</span> History</button>
-      <button class="tab" id="tab-set" onclick="gotoTab('set')"><span>⚙</span> Settings</button>
-    </div>
-    <div class="user-chip">
-      <div class="chip-av" id="chip-av">?</div>
-      <span class="chip-name" id="chip-name">—</span>
-      <button class="chip-so" onclick="signOut()">sign out</button>
-    </div>
-  </div>
-
-  <div class="pages">
-    <!-- ── DOWNLOAD PAGE ── -->
-    <div class="page on" id="page-dl">
-      <div class="dl-hero">
-        <div class="hero-title">
-          <span class="hero-word">Download</span>
-          <span class="hero-word"> Anything.</span>
-          <br/>
-          <span class="hero-word">Zero</span>
-          <span class="hero-word"> Limits.</span>
-        </div>
-        <div class="hero-sub">
-          <span>4K</span> <span>· 1080p</span> <span>· Audio</span> <span>· Playlists</span> <span>· Always with Sound</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="clabel">YouTube / Shorts / Playlist URL</div>
-        <div class="url-row">
-          <input class="url-inp" id="url-inp" type="text"
-                 placeholder="https://youtube.com/watch?v=…"
-                 onkeydown="if(event.key==='Enter')go()"/>
-          <button class="pill" onclick="doPaste()">📋 Paste</button>
-          <button class="pill outline" onclick="document.getElementById('url-inp').value=''">✕</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="clabel">Options</div>
-        <div class="opts-row">
-          <!-- Mode dropdown -->
-          <div class="opt-group" id="dd-mode-group">
-            <label class="opt-label">Mode</label>
-            <div class="dd-trigger" id="dd-mode-trigger" onclick="toggleDD('mode')">
-              <span id="dd-mode-val">Video</span>
-              <span class="dd-arrow">▾</span>
-            </div>
-            <div class="dd-panel" id="dd-mode-panel">
-              <div class="dd-option selected" onclick="pickDD('mode','Video')"><span class="dd-check">✓</span>Video</div>
-              <div class="dd-option" onclick="pickDD('mode','Audio Only')"><span class="dd-check"></span>Audio Only</div>
-              <div class="dd-option" onclick="pickDD('mode','Playlist — Video')"><span class="dd-check"></span>Playlist — Video</div>
-              <div class="dd-option" onclick="pickDD('mode','Playlist — Audio')"><span class="dd-check"></span>Playlist — Audio</div>
-            </div>
-          </div>
-          <!-- Quality dropdown -->
-          <div class="opt-group" id="dd-quality-group">
-            <label class="opt-label">Quality</label>
-            <div class="dd-trigger" id="dd-quality-trigger" onclick="toggleDD('quality')">
-              <span id="dd-quality-val">Best (Max Quality)</span>
-              <span class="dd-arrow">▾</span>
-            </div>
-            <div class="dd-panel" id="dd-quality-panel">
-              <div class="dd-option selected" onclick="pickDD('quality','Best (Max Quality)')"><span class="dd-check">✓</span>Best (Max Quality)</div>
-              <div class="dd-option" onclick="pickDD('quality','4K')"><span class="dd-check"></span>4K</div>
-              <div class="dd-option" onclick="pickDD('quality','1080p')"><span class="dd-check"></span>1080p</div>
-              <div class="dd-option" onclick="pickDD('quality','720p')"><span class="dd-check"></span>720p</div>
-              <div class="dd-option" onclick="pickDD('quality','480p')"><span class="dd-check"></span>480p</div>
-              <div class="dd-option" onclick="pickDD('quality','360p')"><span class="dd-check"></span>360p</div>
-            </div>
-          </div>
-          <!-- Format dropdown -->
-          <div class="opt-group" id="dd-format-group">
-            <label class="opt-label">Format</label>
-            <div class="dd-trigger" id="dd-format-trigger" onclick="toggleDD('format')">
-              <span id="dd-format-val">mp4</span>
-              <span class="dd-arrow">▾</span>
-            </div>
-            <div class="dd-panel" id="dd-format-panel">
-              <div class="dd-option selected" onclick="pickDD('format','mp4')"><span class="dd-check">✓</span>mp4</div>
-              <div class="dd-option" onclick="pickDD('format','mkv')"><span class="dd-check"></span>mkv</div>
-              <div class="dd-option" onclick="pickDD('format','webm')"><span class="dd-check"></span>webm</div>
-              <div class="dd-option" onclick="pickDD('format','mp3')"><span class="dd-check"></span>mp3</div>
-              <div class="dd-option" onclick="pickDD('format','m4a')"><span class="dd-check"></span>m4a</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="clabel">Save Folder</div>
-        <div class="path-bar" onclick="changePath()">
-          <span>📁</span>
-          <span class="path-text" id="path-txt">~/Downloads</span>
-          <span style="font-size:9px;color:var(--fg3);margin-left:auto">click to change</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <!-- Now playing preview -->
-        <div class="now-card" id="now-card">
-          <div class="hi-thumb" id="now-thumb-wrap">
-            <div class="hi-thumb-placeholder">🎬</div>
-          </div>
-          <div class="now-info">
-            <div class="now-title" id="now-title">—</div>
-            <div class="now-status" id="now-status">Fetching info…</div>
-          </div>
-        </div>
-
-        <div class="dl-row">
-          <button class="dl-btn" id="dl-btn" onclick="go()">⬇ Download Now</button>
-          <button class="cancel-btn" onclick="cancelDl()">
-            <span class="cancel-icon">✕</span> Cancel
-          </button>
-        </div>
-
-        <div class="prog-wrap" id="prog-wrap" style="display:none">
-          <div class="prog-track">
-            <div class="prog-fill" id="prog-fill">
-              <div class="prog-dot"></div>
-            </div>
-          </div>
-          <div class="prog-meta">
-            <span id="prog-pct">0%</span>
-            <span id="prog-spd">—</span>
-            <span id="prog-eta">—</span>
-          </div>
-        </div>
-
-        <div class="stat-row">
-          <div class="stat-txt" id="stat-txt">Ready</div>
-          <div class="stat-spd" id="stat-spd2"></div>
-        </div>
-        <div class="console" id="console-log">Waiting for download…</div>
-      </div>
-    </div>
-
-    <!-- ── HISTORY PAGE ── -->
-    <div class="page" id="page-hist">
-      <div class="hist-hdr">
-        <h2>Download History</h2>
-        <button class="pill outline" onclick="clearHist()">🗑 Clear All</button>
-      </div>
-      <div id="hist-list"></div>
-    </div>
-
-    <!-- ── SETTINGS PAGE ── -->
-    <div class="page" id="page-set">
-      <div class="settings-grid">
-        <div class="card">
-          <div class="clabel">Account</div>
-          <div class="acc-row">
-            <div class="acc-av" id="set-av">?</div>
-            <div>
-              <div class="acc-name" id="set-name">—</div>
-              <div class="acc-email" id="set-email">—</div>
-              <div class="acc-method" id="set-method">—</div>
-            </div>
-            <button class="pill outline" onclick="signOut()" style="margin-left:auto;font-size:11px">← Sign Out</button>
-          </div>
-        </div>
-        <div class="card">
-          <div class="clabel">Save Folder</div>
-          <div class="path-bar" onclick="changePath()" style="margin-top:4px">
-            <span>📁</span>
-            <span class="path-text" id="set-path-txt">~/Downloads</span>
-          </div>
-        </div>
-        <div class="card">
-          <div class="clabel">System Status</div>
-          <div class="sys-row"><span class="sys-key">FFmpeg</span><span class="badge ok" id="ffmpeg-badge">✓ Ready — sound works</span></div>
-          <div class="sys-row"><span class="sys-key">yt-dlp</span><span class="sys-val" id="ytdlp-ver">loading…</span></div>
-          <div class="sys-row"><span class="sys-key">Local</span><span class="sys-val">http://localhost:5000</span></div>
-          <div class="sys-row"><span class="sys-key">Network</span><span class="sys-val" id="net-url-val">loading…</span></div>
-          <p style="font-size:10px;color:var(--fg3);margin-top:8px;line-height:1.6">Share the Network URL with anyone on your WiFi — they can use YTDL from their own device!</p>
-        </div>
-        <div class="card">
-          <div class="clabel">Update</div>
-          <button class="pill" style="font-size:12px;padding:9px 16px" onclick="doUpdate(this)">🔄 Update yt-dlp to Latest</button>
-          <div class="upd-res" id="upd-res"></div>
-        </div>
-        <div class="rate-card">
-          <div class="rate-ico">⭐</div>
-          <div class="rate-info"><h3>Enjoying YTDL?</h3><p>Takes 5 seconds — really helps!</p></div>
-          <button class="rate-btn" onclick="document.getElementById('ratedlg').style.display='flex';_stars=0;renderStars()">Rate Us</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
-<div id="toasts"></div>
-
-<script>
-/* ══ STATE ══ */
-let U=null, _authMode='login', _stars=0, _es=null, _busy=false, _savedPath='';
-let _dd={mode:'Video',quality:'Best (Max Quality)',format:'mp4'};
-const DPATH=navigator.platform.includes('Win')?'%USERPROFILE%\\Downloads':'~/Downloads';
-
-/* ══ ICON LAUNCH ANIMATION ══ */
-function animateIcon(id){
-  const el=document.getElementById(id);
-  if(!el)return;
-  el.classList.remove('launch');
-  void el.offsetWidth;
-  el.classList.add('launch');
-}
-
-/* ══ CUSTOM DROPDOWNS ══ */
-function toggleDD(name){
-  const panel=document.getElementById('dd-'+name+'-panel');
-  const trigger=document.getElementById('dd-'+name+'-trigger');
-  const isOpen=panel.classList.contains('open');
-  closeAllDD();
-  if(!isOpen){panel.classList.add('open');trigger.classList.add('open')}
-}
-function closeAllDD(){
-  ['mode','quality','format'].forEach(n=>{
-    document.getElementById('dd-'+n+'-panel')?.classList.remove('open');
-    document.getElementById('dd-'+n+'-trigger')?.classList.remove('open');
-  });
-}
-function pickDD(name,val){
-  _dd[name]=val;
-  document.getElementById('dd-'+name+'-val').textContent=val;
-  // Update checkmarks
-  const panel=document.getElementById('dd-'+name+'-panel');
-  panel.querySelectorAll('.dd-option').forEach(opt=>{
-    const isSelected=opt.textContent.trim()===val;
-    opt.classList.toggle('selected',isSelected);
-    opt.querySelector('.dd-check').textContent=isSelected?'✓':'';
-  });
-  closeAllDD();
-  savePrefs();
-}
-// Close dropdowns on outside click
-document.addEventListener('click',e=>{
-  if(!e.target.closest('.opt-group'))closeAllDD();
-});
-
-/* ══ AUTH ══ */
-function toggleAuthMode(){
-  _authMode=_authMode==='login'?'register':'login';
-  const r=_authMode==='register';
-  document.getElementById('auth-head').textContent=r?'Create account':'Welcome back';
-  document.getElementById('auth-btn').textContent=r?'Create Account':'Sign In';
-  document.getElementById('sw-txt').textContent=r?'Already have one?':'No account?';
-  document.querySelector('.auth-switch a').textContent=r?' Sign in':' Create one';
-  document.getElementById('f-name').style.display=r?'':'none';
-  document.getElementById('f-cpw').style.display=r?'':'none';
-  setAE('');
-}
-function setAE(m){const e=document.getElementById('auth-err');e.textContent=m;e.className='auth-err'+(m?' show':'')}
-
-async function doAuth(){
-  setAE('');
-  const email=document.getElementById('inp-email').value.trim().toLowerCase();
-  const pw=document.getElementById('inp-pw').value;
-  if(!email||!email.includes('@')){setAE('Enter a valid email.');return}
-  if(!pw){setAE('Enter your password.');return}
-  if(_authMode==='register'){
-    const name=document.getElementById('inp-name').value.trim();
-    const cpw=document.getElementById('inp-cpw').value;
-    if(!name){setAE('Enter your name.');return}
-    if(pw.length<6){setAE('Password must be 6+ chars.');return}
-    if(pw!==cpw){setAE("Passwords don't match.");return}
-    const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw,name})});
-    const d=await r.json();if(!r.ok){setAE(d.error);return}
-    launch(d);
-  }else{
-    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
-    const d=await r.json();if(!r.ok){setAE(d.error);return}
-    launch(d);
-  }
-}
-document.getElementById('inp-pw').addEventListener('keydown',e=>e.key==='Enter'&&doAuth());
-
-function showGDlg(){
-  document.getElementById('gdlg').style.display='flex';
-  document.getElementById('g-email').value='';
-  document.getElementById('g-err').textContent='';
-}
-async function doGoogle(){
-  const email=document.getElementById('g-email').value.trim().toLowerCase();
-  const err=document.getElementById('g-err');
-  if(!email||!email.includes('@')){err.textContent='Valid Gmail required';err.className='auth-err show';return}
-  const r=await fetch('/api/google-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-  const d=await r.json();
-  if(!r.ok){err.textContent=d.error;err.className='auth-err show';return}
-  document.getElementById('gdlg').style.display='none';
-  launch(d);
-}
-document.getElementById('g-email').addEventListener('keydown',e=>e.key==='Enter'&&doGoogle());
-
-function launch(user){
-  U=user;
-  localStorage.setItem('ytdl_u',JSON.stringify(user));
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('main-app').classList.add('on');
-  fillUserUI();
-  applyPrefs(user.prefs||{});
-  loadInfo();
-  // Animate topbar icon on launch
-  setTimeout(()=>animateIcon('tbar-icon'),100);
-  // Animate topbar name
-  setTimeout(()=>{
-    const n=document.getElementById('tbar-name');
-    n.classList.add('animIn');
-    setTimeout(()=>n.classList.remove('animIn'),600);
-  },200);
-  const isNew=!user.prefs||!Object.keys(user.prefs).length;
-  toast(isNew?`Welcome, ${user.name.split(' ')[0]}! 🎉`:`Hey ${user.name.split(' ')[0]}! 👋`,'ok');
-}
-function fillUserUI(){
-  if(!U)return;
-  const i=U.name[0].toUpperCase();
-  ['chip-av','set-av'].forEach(id=>document.getElementById(id).textContent=i);
-  document.getElementById('chip-name').textContent=U.name;
-  document.getElementById('set-name').textContent=U.name;
-  document.getElementById('set-email').textContent=U.email;
-  document.getElementById('set-method').textContent='Signed in with '+(U.method==='google'?'Google':'Email & Password');
-}
-function signOut(){
-  U=null;localStorage.removeItem('ytdl_u');
-  document.getElementById('main-app').classList.remove('on');
-  document.getElementById('login-screen').style.display='flex';
-  animateIcon('login-icon');
-}
-
-/* ══ PREFS ══ */
-function applyPrefs(p){
-  if(!p)return;
-  if(p.mode)    pickDD('mode',p.mode);
-  if(p.quality) pickDD('quality',p.quality);
-  if(p.format)  pickDD('format',p.format);
-  const path=p.savepath||DPATH;
-  _savedPath=p.savepath||'';
-  ['path-txt','set-path-txt'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=path});
-}
-async function savePrefs(){
-  if(!U)return;
-  const prefs={mode:_dd.mode,quality:_dd.quality,format:_dd.format,savepath:_savedPath||''};
-  U.prefs=prefs;localStorage.setItem('ytdl_u',JSON.stringify(U));
-  try{await fetch('/api/prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:U.email,prefs})})}catch{}
-}
-function changePath(){
-  const np=prompt('Save folder path:',_savedPath||DPATH);
-  if(np&&np.trim()){
-    _savedPath=np.trim();
-    ['path-txt','set-path-txt'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=_savedPath});
-    savePrefs();toast('Save folder updated ✓','ok');
-  }
-}
-
-/* ══ TABS ══ */
-function gotoTab(name){
-  ['dl','hist','set'].forEach(n=>{
-    document.getElementById('tab-'+n).className='tab'+(n===name?' active':'');
-    document.getElementById('page-'+n).className='page'+(n===name?' on':'');
-  });
-  if(name==='hist')loadHist();
-}
-
-/* ══ DOWNLOAD ══ */
-function doPaste(){navigator.clipboard.readText().then(t=>{document.getElementById('url-inp').value=t.trim()}).catch(()=>toast('Clipboard unavailable','err'))}
-
-function setStat(msg,cls){const el=document.getElementById('stat-txt');el.textContent=msg;el.className='stat-txt'+(cls?' '+cls:'')}
-function setSpd(s){document.getElementById('stat-spd2').textContent=s}
-function setProg(p){
-  const f=document.getElementById('prog-fill');
-  f.style.width=p+'%';
-  document.getElementById('prog-pct').textContent=p.toFixed(1)+'%';
-  if(p>0&&p<100)f.classList.add('active');else f.classList.remove('active');
-}
-function addLog(text,c){
-  const con=document.getElementById('console-log');
-  const d=document.createElement('div');
-  d.className=c?'log-'+c:'';d.textContent=text;
-  con.appendChild(d);con.scrollTop=con.scrollHeight;
-}
-function setThumb(src){
-  const wrap=document.getElementById('now-thumb-wrap');
-  if(src){
-    wrap.innerHTML=`<img src="${src}" alt="" onerror="this.style.display='none'"/>`;
-  }else{
-    wrap.innerHTML=`<div class="hi-thumb-placeholder">🎬</div>`;
-  }
-}
-
-async function go(){
-  if(_busy)return;
-  const url=document.getElementById('url-inp').value.trim();
-  if(!url){toast('Paste a YouTube URL first!','err');return}
-  _busy=true;
-  document.getElementById('dl-btn').disabled=true;
-  document.getElementById('prog-wrap').style.display='';
-  document.getElementById('console-log').innerHTML='';
-  document.getElementById('now-card').classList.add('show');
-  document.getElementById('now-title').textContent='Fetching video info…';
-  document.getElementById('now-status').textContent='';
-  setThumb('');
-  setProg(0);setStat('Starting…','yellow');setSpd('');
-  addLog('► '+url,'dim');
-
-  const r=await fetch('/api/download',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({url,mode:_dd.mode,quality:_dd.quality,format:_dd.format,
-      path:_savedPath||'',user:U?.email||''})});
-  const d=await r.json();
-  if(!r.ok){setStat('Error: '+d.error,'red');_busy=false;document.getElementById('dl-btn').disabled=false;return}
-
-  if(_es){_es.close();_es=null}
-  _es=new EventSource('/api/progress/'+d.job_id);
-  _es.onmessage=e=>{
-    const p=JSON.parse(e.data);
-    if(p.title&&p.title!==document.getElementById('now-title').textContent){
-      document.getElementById('now-title').textContent=p.title;
-    }
-    if(p.thumb) setThumb(p.thumb);
-    if(p.logs)p.logs.forEach(l=>addLog(l.t,l.c==='ok'?'ok':l.c==='err'?'err':l.c==='ylw'?'ylw':'dim'));
-    if(p.status==='downloading'){
-      setProg(p.progress);
-      setStat(`Downloading  ${p.progress.toFixed(1)}%`,'yellow');
-      setSpd((p.speed||'')+(p.eta?' · ETA '+p.eta:''));
-      document.getElementById('prog-spd').textContent=p.speed||'';
-      document.getElementById('prog-eta').textContent=p.eta?'ETA '+p.eta:'';
-      document.getElementById('now-status').textContent=`${p.progress.toFixed(1)}%  ${p.speed||''}  ${p.eta?'ETA '+p.eta:''}`;
-    }else if(p.status==='merging'){
-      setStat('Merging video + audio…','yellow');
-      document.getElementById('now-status').textContent='Merging…';
-    }
-    if(p.done){
-      _es.close();_es=null;_busy=false;
-      document.getElementById('dl-btn').disabled=false;
-      document.getElementById('prog-fill').classList.remove('active');
-      if(p.status==='done'){
-        setProg(100);setStat('✓ Download complete!','green');setSpd('');
-        document.getElementById('now-status').textContent='Saved ✓';
-        toast('Download complete! ✓','ok');
-      }else{
-        setStat('Failed: '+(p.error||'Unknown error'),'red');
-        document.getElementById('now-status').textContent='Failed ✗';
-        toast('Download failed','err');
-      }
-    }
-  };
-  _es.onerror=()=>{
-    if(_es){_es.close();_es=null}
-    _busy=false;document.getElementById('dl-btn').disabled=false;
-    setStat('Connection lost. Try again.','red');
-  };
-}
-function cancelDl(){
-  if(_es){_es.close();_es=null}
-  _busy=false;document.getElementById('dl-btn').disabled=false;
-  document.getElementById('prog-wrap').style.display='none';
-  document.getElementById('now-card').classList.remove('show');
-  setProg(0);setStat('Cancelled.','');setSpd('');
-  toast('Cancelled','');
-}
-
-/* ══ HISTORY ══ */
-async function loadHist(){
-  if(!U)return;
-  const r=await fetch('/api/history?user='+encodeURIComponent(U.email));
-  const items=await r.json();
-  const el=document.getElementById('hist-list');
-  if(!items.length){
-    el.innerHTML=`<div class="empty-state"><div class="empty-ico">🎬</div><p>No downloads yet.<br>Start downloading to see history here.</p></div>`;
-    return;
-  }
-  el.innerHTML='';
-  [...items].reverse().forEach((item,i)=>{
-    const row=document.createElement('div');
-    row.className='hist-item';
-    row.style.animationDelay=(i*.04)+'s';
-    const dot=item.status==='done'?'ok':'err';
-    const meta=[item.mode,item.quality,(item.format||'').toUpperCase(),item.date].filter(Boolean).join(' · ');
-    const thumbHtml=item.thumb
-      ? `<div class="hi-thumb"><img src="${esc(item.thumb)}" alt="" onerror="this.parentNode.innerHTML='<div class=hi-thumb-placeholder>🎬</div>'"/><span class="hi-thumb-badge">${esc((item.format||'mp4').toUpperCase())}</span></div>`
-      : `<div class="hi-thumb"><div class="hi-thumb-placeholder">🎬</div><span class="hi-thumb-badge">${esc((item.format||'?').toUpperCase())}</span></div>`;
-    row.innerHTML=`
-      ${thumbHtml}
-      <div class="hi-dot ${dot}"></div>
-      <div class="hi-info">
-        <div class="hi-title">${esc(item.title||item.url||'?')}</div>
-        <div class="hi-meta">${esc(meta)}</div>
-      </div>
-      <button class="pill outline" style="font-size:10px;flex-shrink:0" onclick="redl('${esc(item.url||'')}')">↺ Re-dl</button>
-    `;
-    el.appendChild(row);
-  });
-}
-function redl(url){document.getElementById('url-inp').value=url;gotoTab('dl')}
-async function clearHist(){
-  if(!confirm('Delete all your download history?'))return;
-  await fetch('/api/history/clear?user='+encodeURIComponent(U.email),{method:'DELETE'});
-  toast('History cleared','ok');loadHist();
-}
-
-/* ══ SETTINGS ══ */
-async function loadInfo(){
-  try{
-    const r=await fetch('/api/info');const d=await r.json();
-    document.getElementById('ytdlp-ver').textContent='v'+d.ytdlp;
-    const nu=document.getElementById('net-url-val');
-    if(d.network&&!d.network.includes('localhost')){nu.textContent=d.network;nu.style.color='var(--blue)'}
-    else nu.textContent='Same device (localhost)';
-    if(!d.ffmpeg){const fb=document.getElementById('ffmpeg-badge');if(fb)fb.textContent='✓ Built-in (static-ffmpeg)'}
-  }catch{}
-}
-async function doUpdate(btn){
-  btn.textContent='Updating…';btn.disabled=true;
-  const r=await fetch('/api/update-ytdlp',{method:'POST'});const d=await r.json();
-  const el=document.getElementById('upd-res');
-  el.textContent=d.msg;el.className='upd-res show '+(d.ok?'ok':'fail');
-  btn.textContent='🔄 Update yt-dlp to Latest';btn.disabled=false;
-  if(d.ok)loadInfo();
-}
-
-/* ══ RATE ══ */
-function hoverStar(n){document.querySelectorAll('.star').forEach((s,i)=>s.className='star'+(i<n?' lit':''))}
-function resetStar(){renderStars()}
-function setStar(n){_stars=n;renderStars()}
-function renderStars(){document.querySelectorAll('.star').forEach((s,i)=>s.className='star'+(i<_stars?' lit':''))}
-function submitRate(){
-  if(!_stars){toast('Pick a star rating!','err');return}
-  document.getElementById('ratedlg').style.display='none';
-  toast(`Thanks for the ${_stars}★! ${_stars>=4?'🎉':'We\'ll keep improving.'}`,'ok');
-}
-
-/* ══ TOASTS ══ */
-function toast(msg,type=''){
-  const c=document.getElementById('toasts');
-  const t=document.createElement('div');
-  t.className='toast'+(type?' '+type:'');t.textContent=msg;c.appendChild(t);
-  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(14px)';t.style.transition='.3s';setTimeout(()=>t.remove(),300)},3000);
-}
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
-
-/* ══ AUTO-RESTORE SESSION ══ */
-const _sv=localStorage.getItem('ytdl_u');
-if(_sv){try{launch(JSON.parse(_sv))}catch{localStorage.removeItem('ytdl_u')}}
-else{animateIcon('login-icon')}
-</script>
-</body>
-</html>
+#!/usr/bin/env python3
+"""
+YTDL — YouTube Downloader
+Fast · Private · Unlimited
+Run this file, browser opens automatically.
+"""
+import subprocess, sys, os
+
+def pip(pkg):
+    subprocess.check_call([sys.executable,"-m","pip","install",pkg,"-q"],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+for p,i in [("flask","flask"),("yt-dlp","yt_dlp"),("static-ffmpeg","static_ffmpeg")]:
+    try: __import__(i)
+    except: print(f"  Installing {p}..."); pip(p)
+
+from flask import Flask, request, jsonify, Response, send_from_directory
+import yt_dlp, static_ffmpeg, shutil, json, hashlib, datetime
+import threading, uuid, re, time, socket, webbrowser
+
+static_ffmpeg.add_paths()
+FFMPEG = shutil.which("ffmpeg") or ""
+
+# ── Storage ───────────────────────────────────────────────────────────────────
+APP_DIR   = os.path.join(os.path.expanduser("~"), ".ytdl_app")
+ACCS_FILE = os.path.join(APP_DIR, "accounts.json")
+HIST_FILE = os.path.join(APP_DIR, "history.json")
+os.makedirs(APP_DIR, exist_ok=True)
+
+def jload(p, d):
+    try:
+        with open(p) as f: return json.load(f)
+    except: return d
+
+def jsave(p, d):
+    with open(p,"w") as f: json.dump(d, f, indent=2)
+
+def hashpw(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+def local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8",80)); ip=s.getsockname()[0]; s.close(); return ip
+    except: return "localhost"
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, static_folder=SCRIPT_DIR, template_folder=SCRIPT_DIR)
+_jobs = {}
+
+# ── Static ────────────────────────────────────────────────────────────────────
+@app.route("/")
+def index(): return send_from_directory(SCRIPT_DIR, "index.html")
+
+@app.route("/favicon.svg")
+def favicon(): return send_from_directory(SCRIPT_DIR, "favicon.svg")
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+@app.route("/api/register", methods=["POST"])
+def register():
+    d=request.json or {}
+    accs=jload(ACCS_FILE,{})
+    email=d.get("email","").strip().lower()
+    pw=d.get("password",""); name=d.get("name","").strip()
+    if not email or "@" not in email: return jsonify(error="Invalid email"),400
+    if not pw or len(pw)<6: return jsonify(error="Password must be 6+ characters"),400
+    if not name: return jsonify(error="Name required"),400
+    if email in accs: return jsonify(error="Account already exists"),409
+    accs[email]={"name":name,"pw_hash":hashpw(pw),
+                 "joined":str(datetime.date.today()),"method":"email","prefs":{}}
+    jsave(ACCS_FILE,accs)
+    return jsonify(ok=True,name=name,email=email,method="email",prefs={})
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    d=request.json or {}
+    accs=jload(ACCS_FILE,{})
+    email=d.get("email","").strip().lower(); pw=d.get("password","")
+    if email not in accs: return jsonify(error="No account with this email"),404
+    if accs[email].get("pw_hash")!=hashpw(pw): return jsonify(error="Wrong password"),401
+    u=accs[email]
+    return jsonify(ok=True,name=u["name"],email=email,
+                   method=u.get("method","email"),prefs=u.get("prefs",{}))
+
+@app.route("/api/google-login", methods=["POST"])
+def google_login():
+    d=request.json or {}
+    accs=jload(ACCS_FILE,{})
+    email=d.get("email","").strip().lower()
+    if not email or "@" not in email: return jsonify(error="Invalid Gmail"),400
+    if email not in accs:
+        gname=email.split("@")[0].replace("."," ").title()
+        accs[email]={"name":gname,"pw_hash":"",
+                     "joined":str(datetime.date.today()),"method":"google","prefs":{}}
+        jsave(ACCS_FILE,accs)
+    u=accs[email]
+    return jsonify(ok=True,name=u["name"],email=email,
+                   method=u.get("method","google"),prefs=u.get("prefs",{}))
+
+# ── Prefs ─────────────────────────────────────────────────────────────────────
+@app.route("/api/prefs", methods=["POST"])
+def save_prefs():
+    d=request.json or {}
+    email=d.get("user","").strip().lower(); prefs=d.get("prefs",{})
+    accs=jload(ACCS_FILE,{})
+    if email not in accs: return jsonify(error="User not found"),404
+    accs[email]["prefs"]=prefs; jsave(ACCS_FILE,accs)
+    return jsonify(ok=True)
+
+# ── History ───────────────────────────────────────────────────────────────────
+@app.route("/api/history")
+def get_history():
+    email=request.args.get("user","")
+    hist=jload(HIST_FILE,[])
+    return jsonify([h for h in hist if h.get("user")==email][-80:])
+
+@app.route("/api/history/clear", methods=["DELETE"])
+def clear_history():
+    email=request.args.get("user","")
+    jsave(HIST_FILE,[h for h in jload(HIST_FILE,[]) if h.get("user")!=email])
+    return jsonify(ok=True)
+
+# ── Download ──────────────────────────────────────────────────────────────────
+@app.route("/api/download", methods=["POST"])
+def start_download():
+    d=request.json or {}
+    url=d.get("url","").strip(); mode=d.get("mode","Video")
+    quality=d.get("quality","Best (Max Quality)"); fmt=d.get("format","mp4")
+    savepath=d.get("path","").strip() or os.path.join(os.path.expanduser("~"),"Downloads")
+    user=d.get("user","")
+    if not url: return jsonify(error="No URL"),400
+
+    jid=str(uuid.uuid4())[:8]
+    _jobs[jid]={"status":"starting","progress":0,"speed":"","eta":"",
+                "log":[],"title":"","thumb":"","error":None,"done":False}
+
+    def run():
+        job=_jobs[jid]
+        q_map={
+            "Best (Max Quality)":"bestvideo+bestaudio/best",
+            "4K":"bestvideo[height<=2160]+bestaudio/best",
+            "1080p":"bestvideo[height<=1080]+bestaudio/best",
+            "720p":"bestvideo[height<=720]+bestaudio/best",
+            "480p":"bestvideo[height<=480]+bestaudio/best",
+            "360p":"bestvideo[height<=360]+bestaudio/best",
+        }
+        os.makedirs(savepath, exist_ok=True)
+        opts={
+            "outtmpl":os.path.join(savepath,"%(title)s.%(ext)s"),
+            "noplaylist":"Playlist" not in mode,
+            "quiet":True,"no_warnings":True,"ignoreerrors":True,
+            "progress_hooks":[lambda d:_hook(job,d)],
+        }
+        if FFMPEG: opts["ffmpeg_location"]=os.path.dirname(FFMPEG)
+        if "Audio" in mode:
+            ext=fmt if fmt in("mp3","m4a") else "mp3"
+            opts["format"]="bestaudio/best"
+            opts["postprocessors"]=[{"key":"FFmpegExtractAudio",
+                                     "preferredcodec":ext,"preferredquality":"320"}]
+        else:
+            opts["format"]=q_map.get(quality,"bestvideo+bestaudio/best")
+            opts["merge_output_format"]=fmt if fmt in("mp4","mkv","webm") else "mp4"
+
+        title=url
+        thumb=""
+        try:
+            with yt_dlp.YoutubeDL({"quiet":True,"no_warnings":True}) as y:
+                try:
+                    info=y.extract_info(url,download=False)
+                    title=info.get("title",url)[:80]
+                    thumb=info.get("thumbnail","")
+                    job["title"]=title
+                    job["thumb"]=thumb
+                    job["log"].append({"t":title,"c":"dim"})
+                except: pass
+            job["status"]="downloading"
+            with yt_dlp.YoutubeDL(opts) as y:
+                y.download([url])
+            job.update({"status":"done","progress":100,"done":True})
+            job["log"].append({"t":f"✓ Saved to {savepath}","c":"ok"})
+            hist=jload(HIST_FILE,[])
+            hist.append({"user":user,"url":url,"title":title,"thumb":thumb,"mode":mode,
+                         "quality":quality,"format":fmt,"status":"done",
+                         "date":datetime.datetime.now().strftime("%Y-%m-%d %H:%M")})
+            jsave(HIST_FILE,hist)
+        except Exception as e:
+            job.update({"status":"error","error":str(e),"done":True})
+            job["log"].append({"t":f"✗ {e}","c":"err"})
+            hist=jload(HIST_FILE,[])
+            hist.append({"user":user,"url":url,"title":title,"thumb":thumb,"mode":mode,
+                         "quality":quality,"format":fmt,"status":"error",
+                         "date":datetime.datetime.now().strftime("%Y-%m-%d %H:%M")})
+            jsave(HIST_FILE,hist)
+
+    threading.Thread(target=run,daemon=True).start()
+    return jsonify(job_id=jid)
+
+def _hook(job, d):
+    if d["status"]=="downloading":
+        raw=d.get("_percent_str","0%").strip()
+        pct=float(re.sub(r"[^\d.]","",raw) or 0)
+        job.update({"progress":pct,"speed":d.get("_speed_str","").strip(),
+                    "eta":d.get("_eta_str","").strip()})
+    elif d["status"]=="finished":
+        job["status"]="merging"
+        job["log"].append({"t":"Merging video + audio…","c":"dim"})
+
+@app.route("/api/progress/<jid>")
+def progress(jid):
+    def stream():
+        ll=0
+        while True:
+            job=_jobs.get(jid)
+            if not job: yield f"data:{json.dumps({'error':'not found'})}\n\n"; break
+            new=job["log"][ll:]; ll=len(job["log"])
+            yield f"data:{json.dumps({'status':job['status'],'progress':job['progress'],'speed':job['speed'],'eta':job['eta'],'title':job['title'],'thumb':job.get('thumb',''),'logs':new,'done':job['done'],'error':job['error']})}\n\n"
+            if job["done"]: break
+            time.sleep(0.3)
+    return Response(stream(),mimetype="text/event-stream",
+                    headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
+
+@app.route("/api/info")
+def info():
+    return jsonify(ytdlp=yt_dlp.version.__version__,
+                   ffmpeg=bool(FFMPEG),
+                   network=f"http://{local_ip()}:5000")
+
+@app.route("/api/update-ytdlp", methods=["POST"])
+def update_ytdlp():
+    try:
+        subprocess.check_output([sys.executable,"-m","pip","install","--upgrade","yt-dlp"],
+                                 stderr=subprocess.STDOUT)
+        import importlib; importlib.reload(yt_dlp)
+        return jsonify(ok=True,msg=f"Updated to v{yt_dlp.version.__version__}")
+    except Exception as e:
+        return jsonify(ok=False,msg=str(e))
+
+if __name__=="__main__":
+    ip=local_ip()
+    print("\n"+"━"*50)
+    print("  YTDL — YouTube Downloader")
+    print("━"*50)
+    print(f"  ▸ Local    http://localhost:5000")
+    print(f"  ▸ Network  http://{ip}:5000")
+    print("━"*50)
+    print("  Keep this window open while using the app.")
+    print("  Press Ctrl+C to stop.\n")
+    threading.Timer(1.4,lambda:webbrowser.open("http://localhost:5000")).start()
+    app.run(host="0.0.0.0",port=5000,debug=False,threaded=True)
