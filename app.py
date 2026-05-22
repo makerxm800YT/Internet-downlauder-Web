@@ -1,49 +1,45 @@
 #!/usr/bin/env python3
 """
-YTDL — YouTube Downloader
-Fast · Private · Unlimited
-Run this file, browser opens automatically.
+Internet Download — Streamlined Media Engine Backend
+Focused strictly on Video and Audio/Music downloads.
 """
-import subprocess, sys, os
+import subprocess
+import sys
+import os
 
-def pip(pkg):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", pkg, "-q"],
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-for p, i in [("flask", "flask"), ("yt-dlp", "yt_dlp"), ("static-ffmpeg", "static_ffmpeg")]:
+# Auto-verify or install missing core dependencies quietly
+for package_name, import_name in [("flask", "flask"), ("yt-dlp", "yt_dlp"), ("static-ffmpeg", "static_ffmpeg")]:
     try:
-        __import__(i)
+        __import__(import_name)
     except Exception:
-        print(f"  Installing {p}...")
-        pip(p)
+        print(f"Installing {package_name} dependencies safely...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name, "-q"],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+import re
+import time
+import uuid
+import socket
+import shutil
+import threading
+import webbrowser
 from flask import Flask, request, jsonify, Response, send_from_directory
-import yt_dlp, static_ffmpeg, shutil, json, hashlib, datetime
-import threading, uuid, re, time, socket, webbrowser
+import yt_dlp
+import static_ffmpeg
 
+# Set up FFMPEG environment binaries
 static_ffmpeg.add_paths()
-FFMPEG = shutil.which("ffmpeg") or ""
+FFMPEG_EXE = shutil.which("ffmpeg") or ""
 
-APP_DIR = os.path.join(os.path.expanduser("~"), ".ytdl_app")
-ACCS_FILE = os.path.join(APP_DIR, "accounts.json")
-HIST_FILE = os.path.join(APP_DIR, "history.json")
+# App working directory mappings for tracking active queues
+APP_DIR = os.path.join(os.path.expanduser("~"), ".internet_download_app")
 os.makedirs(APP_DIR, exist_ok=True)
 
-def jload(p, d):
-    try:
-        with open(p, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return d
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, static_folder=SCRIPT_DIR, template_folder=SCRIPT_DIR)
+_active_jobs = {}
 
-def jsave(p, d):
-    with open(p, "w", encoding="utf-8") as f:
-        json.dump(d, f, indent=2)
-
-def hashpw(pw):
-    return hashlib.sha256(pw.encode()).hexdigest()
-
-def local_ip():
+def get_local_ip_address():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -53,10 +49,6 @@ def local_ip():
     except Exception:
         return "localhost"
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-app = Flask(__name__, static_folder=SCRIPT_DIR, template_folder=SCRIPT_DIR)
-_jobs = {}
-
 @app.route("/")
 def index():
     return send_from_directory(SCRIPT_DIR, "index.html")
@@ -65,328 +57,163 @@ def index():
 def favicon():
     return send_from_directory(SCRIPT_DIR, "favicon.svg")
 
-@app.route("/api/register", methods=["POST"])
-def register():
-    d = request.json or {}
-    accs = jload(ACCS_FILE, {})
-    email = d.get("email", "").strip().lower()
-    pw = d.get("password", "")
-    name = d.get("name", "").strip()
-    if not email or "@" not in email:
-        return jsonify(error="Invalid email"), 400
-    if not pw or len(pw) < 6:
-        return jsonify(error="Password must be 6+ characters"), 400
-    if not name:
-        return jsonify(error="Name required"), 400
-    if email in accs:
-        return jsonify(error="Account already exists"), 409
-
-    accs[email] = {
-        "name": name,
-        "username": name,
-        "bio": "",
-        "pw_hash": hashpw(pw),
-        "joined": str(datetime.date.today()),
-        "method": "email",
-        "prefs": {}
-    }
-    jsave(ACCS_FILE, accs)
-    return jsonify(ok=True, name=name, username=name, bio="", email=email, method="email", prefs={})
-
-@app.route("/api/login", methods=["POST"])
-def login():
-    d = request.json or {}
-    accs = jload(ACCS_FILE, {})
-    email = d.get("email", "").strip().lower()
-    pw = d.get("password", "")
-    if email not in accs:
-        return jsonify(error="No account with this email"), 404
-    if accs[email].get("pw_hash") != hashpw(pw):
-        return jsonify(error="Wrong password"), 401
-
-    u = accs[email]
-    return jsonify(
-        ok=True,
-        name=u["name"],
-        username=u.get("username", u["name"]),
-        bio=u.get("bio", ""),
-        email=email,
-        method=u.get("method", "email"),
-        prefs=u.get("prefs", {})
-    )
-
-@app.route("/api/google-login", methods=["POST"])
-def google_login():
-    d = request.json or {}
-    accs = jload(ACCS_FILE, {})
-    email = d.get("email", "").strip().lower()
-    if not email or "@" not in email:
-        return jsonify(error="Invalid Gmail"), 400
-
-    if email not in accs:
-        gname = email.split("@")[0].replace(".", " ").title()
-        accs[email] = {
-            "name": gname,
-            "username": gname,
-            "bio": "",
-            "pw_hash": "",
-            "joined": str(datetime.date.today()),
-            "method": "google",
-            "prefs": {}
-        }
-        jsave(ACCS_FILE, accs)
-
-    u = accs[email]
-    return jsonify(
-        ok=True,
-        name=u["name"],
-        username=u.get("username", u["name"]),
-        bio=u.get("bio", ""),
-        email=email,
-        method=u.get("method", "google"),
-        prefs=u.get("prefs", {})
-    )
-
-@app.route("/api/profile", methods=["POST"])
-def save_profile():
-    d = request.json or {}
-    email = d.get("user", "").strip().lower()
-    accs = jload(ACCS_FILE, {})
-    if email not in accs:
-        return jsonify(error="User not found"), 404
-
-    if "name" in d and d.get("name", "").strip():
-        accs[email]["name"] = d["name"].strip()
-    if "username" in d and d.get("username", "").strip():
-        accs[email]["username"] = d["username"].strip()
-    if "bio" in d:
-        accs[email]["bio"] = d.get("bio", "").strip()
-
-    jsave(ACCS_FILE, accs)
-    u = accs[email]
-    return jsonify(
-        ok=True,
-        name=u["name"],
-        username=u.get("username", u["name"]),
-        bio=u.get("bio", ""),
-        email=email,
-        method=u.get("method", "email"),
-        prefs=u.get("prefs", {})
-    )
-
-@app.route("/api/prefs", methods=["POST"])
-def save_prefs():
-    d = request.json or {}
-    email = d.get("user", "").strip().lower()
-    prefs = d.get("prefs", {})
-    accs = jload(ACCS_FILE, {})
-    if email not in accs:
-        return jsonify(error="User not found"), 404
-    accs[email]["prefs"] = prefs
-    jsave(ACCS_FILE, accs)
-    return jsonify(ok=True)
-
-@app.route("/api/history")
-def get_history():
-    email = request.args.get("user", "")
-    hist = jload(HIST_FILE, [])
-    return jsonify([h for h in hist if h.get("user") == email][-80:])
-
-@app.route("/api/history/clear", methods=["DELETE"])
-def clear_history():
-    email = request.args.get("user", "")
-    jsave(HIST_FILE, [h for h in jload(HIST_FILE, []) if h.get("user") != email])
-    return jsonify(ok=True)
-
-@app.route("/api/history/remove", methods=["DELETE"])
-def remove_history_item():
-    d = request.json or {}
-    email = d.get("user", "")
-    url = d.get("url", "")
-    hist = [h for h in jload(HIST_FILE, []) if not (h.get("user") == email and h.get("url") == url)]
-    jsave(HIST_FILE, hist)
-    return jsonify(ok=True)
-
 @app.route("/api/download", methods=["POST"])
-def start_download():
-    d = request.json or {}
-    url = d.get("url", "").strip()
-    mode = d.get("mode", "Video")
-    quality = d.get("quality", "Best (Max Quality)")
-    fmt = d.get("format", "mp4")
-    savepath = d.get("path", "").strip() or os.path.join(os.path.expanduser("~"), "Downloads")
-    user = d.get("user", "")
+def start_media_download():
+    payload = request.json or {}
+    url = payload.get("url", "").strip()
+    mode = payload.get("mode", "Video")  # Expected values: "Video" or "Audio Only"
+    quality_tier = payload.get("quality", "Best Available")
+    
     if not url:
-        return jsonify(error="No URL"), 400
+        return jsonify(error="A valid URL resource link is required."), 400
 
-    jid = str(uuid.uuid4())[:8]
-    _jobs[jid] = {
+    job_id = str(uuid.uuid4())[:8]
+    _active_jobs[job_id] = {
         "status": "starting",
         "progress": 0,
         "speed": "",
         "eta": "",
         "log": [],
-        "title": "",
-        "thumb": "",
-        "error": None,
-        "done": False
+        "title": "Extracting stream details...",
+        "done": False,
+        "error": None
     }
 
-    def run():
-        job = _jobs[jid]
-        q_map = {
-            "Best (Max Quality)": "bestvideo+bestaudio/best",
-            "4K": "bestvideo[height<=2160]+bestaudio/best",
-            "1080p": "bestvideo[height<=1080]+bestaudio/best",
-            "720p": "bestvideo[height<=720]+bestaudio/best",
-            "480p": "bestvideo[height<=480]+bestaudio/best",
-            "360p": "bestvideo[height<=360]+bestaudio/best",
-        }
-        os.makedirs(savepath, exist_ok=True)
-        opts = {
-            "outtmpl": os.path.join(savepath, "%(title)s.%(ext)s"),
-            "noplaylist": "Playlist" not in mode,
+    def download_worker_thread():
+        job = _active_jobs[job_id]
+        download_directory = os.path.join(os.path.expanduser("~"), "Downloads")
+        os.makedirs(download_directory, exist_ok=True)
+
+        # Universal fallback options supporting global video & audio platforms
+        ydl_opts = {
+            "outtmpl": os.path.join(download_directory, "%(title)s.%(ext)s"),
+            "noplaylist": True,
             "quiet": True,
             "no_warnings": True,
             "ignoreerrors": True,
-            "progress_hooks": [lambda d: _hook(job, d)],
+            "progress_hooks": [lambda data: progress_hook_callback(job, data)],
         }
-        if FFMPEG:
-            opts["ffmpeg_location"] = os.path.dirname(FFMPEG)
 
+        if FFMPEG_EXE:
+            ydl_opts["ffmpeg_location"] = os.path.dirname(FFMPEG_EXE)
+
+        # Apply specific format extraction filters (Video vs Audio Only)
         if "Audio" in mode:
-            ext = fmt if fmt in ("mp3", "m4a") else "mp3"
-            opts["format"] = "bestaudio/best"
-            opts["postprocessors"] = [{
+            ydl_opts["format"] = "bestaudio/best"
+            ydl_opts["postprocessors"] = [{
                 "key": "FFmpegExtractAudio",
-                "preferredcodec": ext,
+                "preferredcodec": "mp3",
                 "preferredquality": "320"
             }]
         else:
-            opts["format"] = q_map.get(quality, "bestvideo+bestaudio/best")
-            opts["merge_output_format"] = fmt if fmt in ("mp4", "mkv", "webm") else "mp4"
+            # Map quality constraints dynamically
+            if "1080p" in quality_tier:
+                ydl_opts["format"] = "bestvideo[height<=1080]+bestaudio/best"
+            elif "720p" in quality_tier:
+                ydl_opts["format"] = "bestvideo[height<=720]+bestaudio/best"
+            else:
+                ydl_opts["format"] = "bestvideo+bestaudio/best"
+                
+            ydl_opts["merge_output_format"] = "mp4"
 
-        title = url
-        thumb = ""
         try:
-            with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True}) as y:
+            # Step 1: Secure metadata info without dropping packet data
+            with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True}) as extractor:
                 try:
-                    info = y.extract_info(url, download=False)
-                    title = info.get("title", url)[:80]
-                    thumb = info.get("thumbnail", "")
-                    job["title"] = title
-                    job["thumb"] = thumb
-                    job["log"].append({"t": title, "c": "dim"})
+                    info_dict = extractor.extract_info(url, download=False)
+                    if info_dict:
+                        job["title"] = info_dict.get("title", url)[:80]
                 except Exception:
-                    pass
+                    job["title"] = url[:80]
 
+            # Step 2: Fire main download pipelines
             job["status"] = "downloading"
-            with yt_dlp.YoutubeDL(opts) as y:
-                y.download([url])
+            with yt_dlp.YoutubeDL(ydl_opts) as downloader:
+                downloader.download([url])
 
-            job.update({"status": "done", "progress": 100, "done": True})
-            job["log"].append({"t": f"✓ Saved to {savepath}", "c": "ok"})
-
-            hist = jload(HIST_FILE, [])
-            entry = {
-                "user": user,
-                "url": url,
-                "title": title,
-                "thumb": thumb,
-                "mode": mode,
-                "quality": quality,
-                "format": fmt,
+            job.update({
                 "status": "done",
-                "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-            }
-            hist = [h for h in hist if not (h.get("user") == user and h.get("url") == url)]
-            hist.append(entry)
-            jsave(HIST_FILE, hist)
+                "progress": 100,
+                "done": True
+            })
+            job["log"].append({"t": f"✓ File saved successfully to your Downloads directory", "c": "ok"})
 
-        except Exception as e:
-            job.update({"status": "error", "error": str(e), "done": True})
-            job["log"].append({"t": f"✗ {e}", "c": "err"})
-
-            hist = jload(HIST_FILE, [])
-            entry = {
-                "user": user,
-                "url": url,
-                "title": title,
-                "thumb": thumb,
-                "mode": mode,
-                "quality": quality,
-                "format": fmt,
+        except Exception as err:
+            job.update({
                 "status": "error",
-                "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-            }
-            hist = [h for h in hist if not (h.get("user") == user and h.get("url") == url)]
-            hist.append(entry)
-            jsave(HIST_FILE, hist)
+                "error": str(err),
+                "done": True
+            })
+            job["log"].append({"t": f"✗ Error processing stream: {err}", "c": "err"})
 
-    threading.Thread(target=run, daemon=True).start()
-    return jsonify(job_id=jid)
+    threading.Thread(target=download_worker_thread, daemon=True).start()
+    return jsonify(job_id=job_id)
 
-def _hook(job, d):
-    if d["status"] == "downloading":
-        raw = d.get("_percent_str", "0%").strip()
-        pct = float(re.sub(r"[^\d.]", "", raw) or 0)
+def progress_hook_callback(job, data):
+    if data["status"] == "downloading":
+        percent_str = data.get("_percent_str", "0%").strip()
+        parsed_pct = float(re.sub(r"[^\d.]", "", percent_str) or 0)
         job.update({
-            "progress": pct,
-            "speed": d.get("_speed_str", "").strip(),
-            "eta": d.get("_eta_str", "").strip()
+            "progress": parsed_pct,
+            "speed": data.get("_speed_str", "").strip(),
+            "eta": data.get("_eta_str", "").strip()
         })
-    elif d["status"] == "finished":
-        job["status"] = "merging"
-        job["log"].append({"t": "Merging video + audio…", "c": "dim"})
+    elif data["status"] == "finished":
+        job["status"] = "processing"
+        job["log"].append({"t": "Converting and processing target formats...", "c": "dim"})
 
 @app.route("/api/progress/<jid>")
-def progress(jid):
-    def stream():
-        ll = 0
+def tracking_progress_stream(jid):
+    def event_generator():
+        last_logged_index = 0
         while True:
-            job = _jobs.get(jid)
+            job = _active_jobs.get(jid)
             if not job:
-                yield f"data:{json.dumps({'error': 'not found'})}\n\n"
+                yield f"data:{json.dumps({'error': 'Job ID entry not found'})}\n\n"
                 break
-            new = job["log"][ll:]
-            ll = len(job["log"])
-            yield f"data:{json.dumps({'status': job['status'], 'progress': job['progress'], 'speed': job['speed'], 'eta': job['eta'], 'title': job['title'], 'thumb': job.get('thumb', ''), 'logs': new, 'done': job['done'], 'error': job['error']})}\n\n"
+                
+            new_logs = job["log"][last_logged_index:]
+            last_logged_index = len(job["log"])
+            
+            yield f"data:{jsonify_job_status(job, new_logs)}\n\n"
             if job["done"]:
                 break
             time.sleep(0.3)
-    return Response(stream(), mimetype="text/event-stream",
+            
+    return Response(event_generator(), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+def jsonify_job_status(job, logs):
+    import json
+    return json.dumps({
+        "status": job["status"],
+        "progress": job["progress"],
+        "speed": job["speed"],
+        "eta": job["eta"],
+        "title": job["title"],
+        "logs": logs,
+        "done": job["done"],
+        "error": job["error"]
+    })
+
 @app.route("/api/info")
-def info():
+def engine_environment_info():
     return jsonify(
         ytdlp=yt_dlp.version.__version__,
-        ffmpeg=bool(FFMPEG),
-        network=f"http://{local_ip()}:5000"
+        ffmpeg=bool(FFMPEG_EXE),
+        network=f"http://{get_local_ip_address()}:5000"
     )
 
-@app.route("/api/update-ytdlp", methods=["POST"])
-def update_ytdlp():
-    try:
-        subprocess.check_output(
-            [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"],
-            stderr=subprocess.STDOUT
-        )
-        import importlib
-        importlib.reload(yt_dlp)
-        return jsonify(ok=True, msg=f"Updated to v{yt_dlp.version.__version__}")
-    except Exception as e:
-        return jsonify(ok=False, msg=str(e))
-
 if __name__ == "__main__":
-    ip = local_ip()
-    print("\n" + "━" * 50)
-    print("  YTDL — YouTube Downloader")
-    print("━" * 50)
-    print(f"  ▸ Local    http://localhost:5000")
-    print(f"  ▸ Network  http://{ip}:5000")
-    print("━" * 50)
-    print("  Keep this window open while using the app.")
-    print("  Press Ctrl+C to stop.\n")
-    threading.Timer(1.4, lambda: webbrowser.open("http://localhost:5000")).start()
+    local_ip = get_local_ip_address()
+    print("\n" + "━" * 60)
+    print("  INTERNET DOWNLOAD — ENGINE SERVER ACTIVE")
+    print("━" * 60)
+    print(f"  ▸ Local Server:   http://localhost:5000")
+    print(f"  ▸ Network Access: http://{local_ip}:5000")
+    print("━" * 60)
+    print("  Keep this console window open to process downloads.\n")
+    
+    # Delayed browser auto-open 
+    threading.Timer(1.2, lambda: webbrowser.open("http://localhost:5000")).start()
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
