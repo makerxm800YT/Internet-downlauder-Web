@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-YTDL — Beautiful YouTube Downloader
+Internet Downloader — Beautiful & Private
 """
 
 import subprocess, sys, os
@@ -9,45 +9,16 @@ def pip(pkg):
     subprocess.check_call([sys.executable, "-m", "pip", "install", pkg, "-q"],
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-# Install dependencies
 for p, i in [("flask", "flask"), ("yt-dlp", "yt_dlp"), ("static-ffmpeg", "static_ffmpeg")]:
-    try:
-        __import__(i)
-    except:
-        print(f"Installing {p}...")
-        pip(p)
+    try: __import__(i)
+    except: print(f"Installing {p}..."); pip(p)
 
 from flask import Flask, request, jsonify, Response, send_from_directory
-import yt_dlp, static_ffmpeg, shutil, json, hashlib, datetime
-import threading, uuid, re, time, socket, webbrowser
+import yt_dlp, static_ffmpeg, shutil, json, datetime
+import threading, uuid, time, socket, webbrowser
 
 static_ffmpeg.add_paths()
 FFMPEG = shutil.which("ffmpeg") or ""
-
-APP_DIR = os.path.join(os.path.expanduser("~"), ".ytdl_app")
-ACCS_FILE = os.path.join(APP_DIR, "accounts.json")
-HIST_FILE = os.path.join(APP_DIR, "history.json")
-os.makedirs(APP_DIR, exist_ok=True)
-
-def jload(p, d):
-    try:
-        with open(p) as f: return json.load(f)
-    except: return d
-
-def jsave(p, d):
-    with open(p, "w") as f: json.dump(d, f, indent=2)
-
-def hashpw(pw):
-    return hashlib.sha256(pw.encode()).hexdigest()
-
-def local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except: return "localhost"
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=SCRIPT_DIR, template_folder=SCRIPT_DIR)
@@ -62,61 +33,10 @@ def index():
 def favicon():
     return send_from_directory(SCRIPT_DIR, "favicon.svg")
 
-# ===================== AUTH =====================
-@app.route("/api/register", methods=["POST"])
-def register():
-    d = request.json or {}
-    accs = jload(ACCS_FILE, {})
-    email = d.get("email","").strip().lower()
-    pw = d.get("password","")
-    name = d.get("name","").strip() or "User"
-
-    if not email or "@" not in email: return jsonify(error="Invalid email"), 400
-    if not pw or len(pw) < 6: return jsonify(error="Password too short"), 400
-    if email in accs: return jsonify(error="Account already exists"), 409
-
-    accs[email] = {"name": name, "pw_hash": hashpw(pw), "joined": str(datetime.date.today()), "method": "email"}
-    jsave(ACCS_FILE, accs)
-    return jsonify(ok=True, name=name, email=email)
-
-@app.route("/api/login", methods=["POST"])
-def login():
-    d = request.json or {}
-    accs = jload(ACCS_FILE, {})
-    email = d.get("email","").strip().lower()
-    pw = d.get("password","")
-    
-    if email not in accs or accs[email].get("pw_hash") != hashpw(pw):
-        return jsonify(error="Wrong email or password"), 401
-    
-    u = accs[email]
-    return jsonify(ok=True, name=u["name"], email=email)
-
-@app.route("/api/google-login", methods=["POST"])
-def google_login():
-    d = request.json or {}
-    accs = jload(ACCS_FILE, {})
-    email = d.get("email","").strip().lower()
-    if not email or "@" not in email: return jsonify(error="Invalid Gmail"), 400
-    
-    if email not in accs:
-        name = email.split("@")[0].replace(".", " ").title()
-        accs[email] = {"name": name, "pw_hash": "", "joined": str(datetime.date.today()), "method": "google"}
-        jsave(ACCS_FILE, accs)
-    
-    u = accs[email]
-    return jsonify(ok=True, name=u["name"], email=email)
-
-# ===================== DOWNLOAD =====================
 @app.route("/api/download", methods=["POST"])
 def start_download():
     d = request.json or {}
     url = d.get("url", "").strip()
-    mode = d.get("mode", "Video")
-    quality = d.get("quality", "Best (Max Quality)")
-    fmt = d.get("format", "mp4")
-    user = d.get("user", "")
-
     if not url:
         return jsonify(error="No URL provided"), 400
 
@@ -139,21 +59,8 @@ def start_download():
             opts = {
                 'outtmpl': os.path.join(os.path.expanduser("~"), "Downloads", '%(title)s.%(ext)s'),
                 'progress_hooks': [hook],
-                'merge_output_format': fmt,
-                'noplaylist': "Playlist" not in mode,
+                'merge_output_format': 'mp4',
             }
-
-            if "Audio" in mode:
-                opts["format"] = "bestaudio/best"
-                opts["postprocessors"] = [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}]
-            else:
-                qmap = {
-                    "Best (Max Quality)": "bestvideo+bestaudio/best",
-                    "4K": "bestvideo[height<=2160]+bestaudio/best",
-                    "1080p": "bestvideo[height<=1080]+bestaudio/best",
-                    "720p": "bestvideo[height<=720]+bestaudio/best",
-                }
-                opts["format"] = qmap.get(quality, "bestvideo+bestaudio/best")
 
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -167,7 +74,7 @@ def start_download():
 
         except Exception as e:
             job["status"] = "error"
-            job["log"].append(f"❌ Error: {str(e)}")
+            job["log"].append(f"Error: {str(e)}")
             job["done"] = True
 
     threading.Thread(target=run, daemon=True).start()
@@ -186,12 +93,21 @@ def progress(job_id):
 
 if __name__ == "__main__":
     ip = local_ip()
-    print("\n" + "═"*60)
-    print("   YTDL — Beautiful YouTube Downloader")
-    print("═"*60)
-    print(f"   Local:   http://localhost:5000")
-    print(f"   Network: http://{ip}:5000")
-    print("═"*60)
+    print("\n" + "═"*65)
+    print("   🌐 Internet Downloader")
+    print("═"*65)
+    print(f"   Local   →  http://localhost:5000")
+    print(f"   Network →  http://{ip}:5000")
+    print("═"*65)
     
     threading.Timer(1.5, lambda: webbrowser.open("http://localhost:5000")).start()
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+
+def local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except: return "localhost"
