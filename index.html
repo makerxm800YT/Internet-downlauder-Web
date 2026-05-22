@@ -1,418 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Internet Download</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#060608;--bg2:#0b0b12;--card:#11111a;--card2:#171726;
-  --s3:#1c1c30;--s4:#24243d;--bdr:#222235;--bdr2:#2f2f4c;
-  --accent:#00ffcc;--accent2:#00ccff;--accentglow:rgba(0,255,204,.15);--accentsoft:rgba(0,255,204,.06);
-  --grn:#00e676;--ylw:#ffab40;--red:#ff4444;
-  --fg:#f5f5fa;--fg2:#a0a0c0;--fg3:#555575;--fg4:#1a1a26;
-  --r:16px;--rpill:999px;
-}
-html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--fg);overflow:hidden}
-::selection{background:var(--accent);color:#000}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--s4);border-radius:var(--rpill)}
-
-/* Grid Background & Animations */
-body::before{
-  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:linear-gradient(rgba(0,255,204,.015) 1px,transparent 1px),
-                   linear-gradient(90deg,rgba(0,255,204,.015) 1px,transparent 1px);
-  background-size:40px 40px;
-  mask-image:radial-gradient(ellipse 80% 50% at 50% 0%,black,transparent);
-}
-.blob{position:fixed;width:650px;height:650px;border-radius:50%;
-  background:radial-gradient(circle,rgba(0,255,204,.05) 0%,transparent 70%);
-  pointer-events:none;z-index:0;top:-220px;left:50%;transform:translateX(-50%);
-  animation:blob 6s ease-in-out infinite;}
-@keyframes blob{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
-
-#app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column}
-
-/* Topbar Navigation & Profile Alignment */
-.topbar{
-  background:rgba(6,6,10,.88);backdrop-filter:blur(24px);
-  border-bottom:1px solid var(--bdr);height:60px;
-  display:flex;align-items:center;padding:0 20px;gap:12px;
-  flex-shrink:0;z-index:10;
-}
-.tbar-logo{display:flex;align-items:center;gap:8px}
-.tbar-name{
-  font-family:'Unbounded',sans-serif;font-size:13px;letter-spacing:.02em;
-  background:linear-gradient(90deg, #fff, var(--accent));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-}
-
-.tabs{display:flex;gap:4px;margin-left:12px}
-.tab{
-  padding:8px 16px;border:none;border-radius:var(--rpill);
-  background:transparent;color:var(--fg2);
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
-  cursor:pointer;transition:all .2s ease;display:flex;align-items:center;gap:6px;
-}
-.tab:hover{background:var(--s3);color:var(--fg)}
-.tab.active{
-  background:var(--accentsoft);color:var(--accent);
-  border:1px solid rgba(0,255,204,.2);
-  box-shadow:0 0 14px var(--accentglow);
-}
-
-/* User Profile Dropdown Container */
-.profile-wrapper {
-  position: relative;
-  margin-left: auto;
-}
-.user-chip{
-  display:flex;align-items:center;gap:10px;
-  background:var(--card);border:1px solid var(--bdr2);
-  border-radius:var(--rpill);padding:6px 14px 6px 6px;cursor:pointer;
-  transition:all .2s ease;
-}
-.user-chip:hover {
-  border-color: var(--accent);
-  box-shadow: 0 0 10px var(--accentglow);
-}
-.chip-av{
-  width:28px;height:28px;border-radius:50%;
-  background:linear-gradient(135deg, var(--accent), var(--accent2));
-  display:flex;align-items:center;justify-content:center;
-  font-family:'Unbounded',sans-serif;font-size:11px;color:#000;font-weight:900;
-}
-.chip-name{font-size:12px;font-weight:600;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chip-arrow { font-size: 8px; color: var(--fg3); transition: transform 0.2s; }
-.user-chip:hover .chip-arrow { transform: translateY(1px); color: var(--accent); }
-
-/* Customizable Flyout Panel */
-.profile-flyout {
-  position: absolute; top: calc(100% + 8px); right: 0; width: 260px;
-  background: var(--card2); border: 1px solid var(--bdr2); border-radius: 14px;
-  padding: 16px; box-shadow: 0 16px 40px rgba(0,0,0,0.5); display: none;
-  z-index: 100; flex-direction: column; gap: 10px;
-  animation: flyoutIn .2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-@keyframes flyoutIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
-.profile-flyout.open { display: flex; }
-.flyout-header { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--fg3); letter-spacing: 0.05em; }
-.flyout-input {
-  width: 100%; background: var(--s3); border: 1px solid var(--bdr2); color: var(--fg);
-  padding: 8px 12px; border-radius: 8px; font-size: 12px; outline: none; font-family: inherit;
-}
-.flyout-input:focus { border-color: var(--accent); }
-.flyout-bio { resize: none; min-height: 50px; }
-.flyout-save-btn {
-  background: var(--accent); color: #000; border: none; padding: 8px;
-  border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
-}
-.flyout-save-btn:hover { opacity: 0.9; }
-
-/* Views Base layout */
-.pages{flex:1;overflow:hidden;position:relative}
-.page{position:absolute;inset:0;overflow-y:auto;padding:24px;display:none}
-.page.on{display:block;animation:pageIn .25s ease-out forwards}
-@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-
-/* Hero Header Text formatting */
-.dl-hero{text-align:center;padding:20px 0 24px}
-.hero-title{font-family:'Unbounded',sans-serif;font-size:26px;font-weight:900;line-height:1.2;}
-.hero-word{
-  display:inline-block;
-  background:linear-gradient(135deg,#fff,var(--accent2),var(--accent));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-}
-.hero-sub{font-size:11px;color:var(--fg2);margin-top:8px;display:flex;justify-content:center;gap:8px;}
-.hero-sub span{background:var(--s3);padding:3px 10px;border-radius:var(--rpill);border:1px solid var(--bdr);}
-
-/* Card Component Layout */
-.card{
-  background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);
-  padding:18px;margin-bottom:14px;
-}
-.clabel{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);margin-bottom:10px}
-
-/* URL Input formatting */
-.url-row{display:flex;gap:6px;align-items:center}
-.url-inp{
-  flex:1;background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);
-  padding:11px 16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--fg);
-  outline:none;transition:all .18s;
-}
-.url-inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentsoft);background:var(--s4);}
-
-/* Option Pill items */
-.pill{
-  padding:10px 16px;border:none;border-radius:var(--rpill);
-  background:var(--s3);color:var(--fg);
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
-  cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;
-}
-.pill:hover{background:var(--s4);color:var(--accent)}
-.pill.outline{background:transparent;border:1px solid var(--bdr2)}
-.pill.outline:hover{border-color:var(--red);color:var(--red);background:rgba(255,68,68,0.05)}
-
-/* Dropdown styling updates */
-.opts-row{display:flex;gap:14px;flex-wrap:wrap}
-.opt-group{display:flex;flex-direction:column;gap:5px;position:relative;flex:1;min-width:180px}
-.opt-label{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
-
-.dd-trigger{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  background:var(--s3);border:1px solid var(--bdr2);border-radius:12px;
-  padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--fg);
-  cursor:pointer;transition:all .18s;user-select:none;
-}
-.dd-trigger:hover{background:var(--s4);border-color:var(--bdr)}
-.dd-trigger.open{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentsoft);background:var(--s4)}
-.dd-arrow{color:var(--fg3);transition:transform .22s;}
-.dd-trigger.open .dd-arrow{transform:rotate(180deg)}
-
-.dd-panel{
-  position:absolute;top:calc(100% + 4px);left:0;right:0;
-  background:var(--card2);border:1px solid var(--bdr2);border-radius:12px;
-  padding:5px;z-index:50;box-shadow:0 12px 36px rgba(0,0,0,.5);
-  opacity:0;transform:translateY(-6px) scale(.98);pointer-events:none;
-  transition:all .18s cubic-bezier(.16,1,.3,1);transform-origin:top center;
-}
-.dd-panel.open{opacity:1;transform:none;pointer-events:all}
-.dd-option{
-  padding:8px 12px;border-radius:8px;font-size:12px;color:var(--fg2);cursor:pointer;transition:all .12s;
-}
-.dd-option:hover{background:var(--s3);color:var(--fg)}
-.dd-option.selected{background:var(--accentsoft);color:var(--accent);font-weight:600;}
-
-/* Action download triggers */
-.dl-btn{
-  padding:14px 32px;border:none;border-radius:var(--rpill);
-  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#000;
-  font-family:'Unbounded',sans-serif;font-size:12px;font-weight:900;
-  cursor:pointer;transition:all .2s ease;
-  display:inline-flex;align-items:center;gap:8px;
-  box-shadow:0 4px 20px rgba(0,255,204,.15);
-}
-.dl-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,255,204,.3)}
-.dl-btn:active{transform:scale(.98)}
-.dl-row{display:flex;align-items:center;margin-top:8px}
-
-/* Settings View & Unified Roblox Signout Integration */
-.settings-grid { display: flex; flex-direction: column; gap: 16px; }
-.settings-card { background: var(--card); border: 1px solid var(--bdr); border-radius: 14px; padding: 20px; }
-.settings-title { font-family: 'Unbounded', sans-serif; font-size: 13px; margin-bottom: 12px; color: var(--fg); }
-.sys-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--s3)}
-.sys-row:last-child{border-bottom:none}
-.sys-key{font-size:12px;color:var(--fg2)}.sys-val{font-size:11px;color:var(--accent);font-family:'DM Mono',monospace}
-
-.signout-panel-btn {
-  width: 100%; background: linear-gradient(135deg, #ff4444, #b30000); color: #fff;
-  border: none; padding: 12px; border-radius: 10px; font-family: 'Unbounded', sans-serif;
-  font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;
-  display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(255,68,68,0.15);
-}
-.signout-panel-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(255,68,68,0.3); }
-
-#toasts{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:6px}
-.toast{
-  background:var(--card2);border:1px solid var(--bdr2);border-radius:8px;
-  padding:10px 16px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);
-  animation:toastIn .25s ease forwards;
-}
-@keyframes toastIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YTDL - makerxm800</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        :root { --red: #ff0000; }
+        body {
+            margin: 0;
+            font-family: system-ui, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            min-height: 100vh;
+        }
+        .header {
+            background: #111;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+        }
+        .profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+        .avatar {
+            width: 55px;
+            height: 55px;
+            background: linear-gradient(135deg, #ff0000, #c80000);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: bold;
+            border: 2px solid #fff;
+        }
+        .username {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .bio {
+            font-size: 13px;
+            color: #888;
+        }
+        .container {
+            max-width: 520px;
+            margin: 30px auto;
+            padding: 0 15px;
+        }
+        .card {
+            background: #1a1a1a;
+            border-radius: 20px;
+            padding: 28px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
+        input {
+            width: 100%;
+            padding: 16px;
+            margin: 15px 0;
+            background: #222;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover { transform: translateY(-2px); }
+        .btn-red { background: var(--red); color: white; }
+        .btn-gray { background: #333; color: white; }
+        .settings-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+        }
+    </style>
 </head>
 <body>
-<div class="blob"></div>
-<div id="app">
-
-  <div class="topbar">
-    <div class="tbar-logo">
-      <span class="tbar-name">INTERNET DOWNLOAD</span>
-    </div>
-    <div class="tabs">
-      <button class="tab active" id="tab-dl" onclick="gotoTab('dl')">⬇ Download</button>
-      <button class="tab" id="tab-hist" onclick="gotoTab('hist')">🕘 History</button>
-      <button class="tab" id="tab-set" onclick="gotoTab('set')">⚙ Settings</button>
-    </div>
-    
-    <div class="profile-wrapper">
-      <div class="user-chip" onclick="toggleProfileDropdown(event)">
-        <div class="chip-av" id="chip-av">M</div>
-        <span class="chip-name" id="chip-name">Makerxm800</span>
-        <span class="chip-arrow">▼</span>
-      </div>
-      
-      <div class="profile-flyout" id="profile-flyout" onclick="event.stopPropagation()">
-        <span class="flyout-header">Profile Setup</span>
-        <input type="text" id="edit-username" class="flyout-input" placeholder="Edit username..." value="Makerxm800"/>
-        <textarea id="edit-bio" class="flyout-input flyout-bio" placeholder="Write profile bio details..."></textarea>
-        <button class="flyout-save-btn" onclick="saveProfileChanges()">Update Profile</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="pages">
-    <div class="page on" id="page-dl">
-      <div class="dl-hero">
-        <div class="hero-title">
-          <span class="hero-word">Media Engine.</span>
-        </div>
-        <div class="hero-sub">
-          <span>Video Formats</span> <span>· Lossless Audio extraction</span> <span>· Multi-Platform</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="clabel">Input Source URL</div>
-        <div class="url-row">
-          <input class="url-inp" id="url-inp" type="text" placeholder="Enter target track link or video address stream..."/>
-          <button class="pill" onclick="doPaste()">📋 Paste</button>
-          <button class="pill outline" onclick="document.getElementById('url-inp').value=''">✕</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="clabel">Format Directives</div>
-        <div class="opts-row">
-          <div class="opt-group">
-            <label class="opt-label">Output Target Mode</label>
-            <div class="dd-trigger" id="dd-mode-trigger" onclick="toggleDD('mode')">
-              <span id="dd-mode-val">Video</span><span class="dd-arrow">▼</span>
+    <!-- Header with Profile -->
+    <div class="header">
+        <div class="profile" onclick="alert('Profile Page - Coming Soon!')">
+            <div class="avatar">M</div>
+            <div>
+                <div class="username">makerxm800</div>
+                <div class="bio">Downloader • Local App</div>
             </div>
-            <div class="dd-panel" id="dd-mode-panel">
-              <div class="dd-option selected" onclick="pickDD('mode','Video')">Video</div>
-              <div class="dd-option" onclick="pickDD('mode','Audio Only')">Audio Only</div>
-            </div>
-          </div>
-          
-          <div class="opt-group">
-            <label class="opt-label">Max Quality Tier</label>
-            <div class="dd-trigger" id="dd-quality-trigger" onclick="toggleDD('quality')">
-              <span id="dd-quality-val">Best Available</span><span class="dd-arrow">▼</span>
-            </div>
-            <div class="dd-panel" id="dd-quality-panel">
-              <div class="dd-option selected" onclick="pickDD('quality','Best Available')">Best Available</div>
-              <div class="dd-option" onclick="pickDD('quality','1080p')">1080p Full HD</div>
-              <div class="dd-option" onclick="pickDD('quality','720p')">720p</div>
-            </div>
-          </div>
         </div>
-      </div>
-
-      <div class="dl-row">
-        <button class="dl-btn" onclick="executeDownloadEngine()">🚀 Initialize Download</button>
-      </div>
+        <button class="settings-btn" onclick="alert('Settings coming soon! ✨')">
+            <i class="fas fa-cog"></i>
+        </button>
     </div>
 
-    <div class="page" id="page-hist">
-      <div class="card">
-        <div class="clabel">Local Session Operations Logs</div>
-        <div style="color:var(--fg3); font-size:12px; text-align:center; padding:24px 0;">No media operations tracked in current layout cache state.</div>
-      </div>
+    <div class="container">
+        <div class="card">
+            <h2 style="text-align:center; margin-bottom:20px;">Download Media</h2>
+            
+            <input type="text" id="url" placeholder="Paste YouTube, Shorts or Spotify link...">
+
+            <button class="btn-red" onclick="downloadVideo()">
+                <i class="fab fa-youtube"></i> Download YouTube / Shorts
+            </button>
+
+            <button class="btn-gray" onclick="downloadAudio()">
+                🎵 Audio Only (MP3)
+            </button>
+
+            <div id="progress-area" style="display:none; margin-top:25px;">
+                <h3 id="title"></h3>
+                <div style="height:10px; background:#333; border-radius:999px; overflow:hidden;">
+                    <div id="progress" style="height:100%; width:0%; background:#ff0000; transition:width 0.4s;"></div>
+                </div>
+                <p id="status" style="text-align:center; margin:10px 0; font-size:14px;"></p>
+                <div id="log" style="background:#000; padding:12px; border-radius:12px; max-height:200px; overflow:auto; font-size:14px;"></div>
+            </div>
+        </div>
     </div>
 
-    <div class="page" id="page-set">
-      <div class="settings-grid">
-        <div class="settings-card">
-          <div class="settings-title">⚙ Configuration Profile</div>
-          <div class="sys-row"><span class="sys-key">Audio Encoding Format</span><span class="sys-val">FLAC (Lossless Audio requested)</span></div>
-          <div class="sys-row"><span class="sys-key">Extraction Framework Engine Core</span><span class="sys-val">yt-dlp Core Architecture</span></div>
-        </div>
-
-        <div class="settings-card" style="border-color: rgba(255,68,68,0.15);">
-          <div class="settings-title" style="color:var(--red);">🚪 Active Configuration Session</div>
-          <p style="font-size:11px; color:var(--fg2); margin-bottom:14px;">Disconnect or refresh active panel UI parameters securely.</p>
-          <button class="signout-panel-btn" onclick="triggerSessionReset()">Sign Out Session</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="toasts"></div>
-
-<script>
-function gotoTab(tabId) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
-  document.getElementById('tab-' + tabId).classList.add('active');
-  document.getElementById('page-' + tabId).classList.add('on');
-}
-
-function toggleProfileDropdown(e) {
-  e.stopPropagation();
-  document.getElementById('profile-flyout').classList.toggle('open');
-}
-
-function saveProfileChanges() {
-  const usernameVal = document.getElementById('edit-username').value;
-  if(usernameVal.trim() !== "") {
-    document.getElementById('chip-name').innerText = usernameVal;
-    document.getElementById('chip-av').innerText = usernameVal.charAt(0).toUpperCase();
-    showToast("Profile layout setup updated configuration details!");
-  }
-  document.getElementById('profile-flyout').classList.remove('open');
-}
-
-function toggleDD(type) {
-  document.getElementById('dd-' + type + '-panel').classList.toggle('open');
-  document.getElementById('dd-' + type + '-trigger').classList.toggle('open');
-}
-
-function pickDD(type, val) {
-  document.getElementById('dd-' + type + '-val').innerText = val;
-  document.getElementById('dd-' + type + '-panel').classList.remove('open');
-  document.getElementById('dd-' + type + '-trigger').classList.remove('open');
-  showToast(`Parameter: ${type} changed to ${val}`);
-}
-
-async function doPaste() {
-  try {
-    const text = await navigator.clipboard.readText();
-    document.getElementById('url-inp').value = text;
-  } catch (err) {
-    showToast("Clipboard permission check context failed.");
-  }
-}
-
-function showToast(msg) {
-  const toastContainer = document.getElementById('toasts');
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.innerText = msg;
-  toastContainer.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
-}
-
-function executeDownloadEngine() {
-  const targetUrl = document.getElementById('url-inp').value;
-  if(!targetUrl) {
-    showToast("Please specify a valid resource streaming link entry address.");
-    return;
-  }
-  
-  // Clean detection wrapper logic 
-  if(targetUrl.toLowerCase().includes("spotify.com")) {
-    showToast("Spotify source found: Initiating track query search lookup redirection algorithm via engine bypass...");
-  } else {
-    showToast("Forwarding download parameters to active yt-dlp backend pipe...");
-  }
-}
-
-function triggerSessionReset() {
-  alert("Logging out from layout system connection profiles state context data. Re-initializing view.");
-  window.location.reload();
-}
-
-window.onclick = function() {
-  document.getElementById('profile-flyout').classList.remove('open');
-  document.querySelectorAll('.dd-panel').forEach(p => p.classList.remove('open'));
-  document.querySelectorAll('.dd-trigger').forEach(t => t.classList.remove('open'));
-}
-</script>
+    <script src="app.js"></script>
 </body>
 </html>
