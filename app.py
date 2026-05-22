@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-YTDL — YouTube Downloader
-Modern • Private • Fast
+YTDL — Beautiful YouTube Downloader
 """
 
 import subprocess, sys, os
@@ -63,18 +62,17 @@ def index():
 def favicon():
     return send_from_directory(SCRIPT_DIR, "favicon.svg")
 
-# ── Auth (kept simple but working) ─────────────────────────────────────
+# ===================== AUTH =====================
 @app.route("/api/register", methods=["POST"])
 def register():
     d = request.json or {}
     accs = jload(ACCS_FILE, {})
     email = d.get("email","").strip().lower()
     pw = d.get("password","")
-    name = d.get("name","").strip()
-    
+    name = d.get("name","").strip() or "User"
+
     if not email or "@" not in email: return jsonify(error="Invalid email"), 400
     if not pw or len(pw) < 6: return jsonify(error="Password too short"), 400
-    if not name: return jsonify(error="Name required"), 400
     if email in accs: return jsonify(error="Account already exists"), 409
 
     accs[email] = {"name": name, "pw_hash": hashpw(pw), "joined": str(datetime.date.today()), "method": "email"}
@@ -102,20 +100,22 @@ def google_login():
     if not email or "@" not in email: return jsonify(error="Invalid Gmail"), 400
     
     if email not in accs:
-        gname = email.split("@")[0].replace(".", " ").title()
-        accs[email] = {"name": gname, "pw_hash": "", "joined": str(datetime.date.today()), "method": "google"}
+        name = email.split("@")[0].replace(".", " ").title()
+        accs[email] = {"name": name, "pw_hash": "", "joined": str(datetime.date.today()), "method": "google"}
         jsave(ACCS_FILE, accs)
     
     u = accs[email]
     return jsonify(ok=True, name=u["name"], email=email)
 
-# ── Download Core ─────────────────────────────────────────────────────
+# ===================== DOWNLOAD =====================
 @app.route("/api/download", methods=["POST"])
 def start_download():
     d = request.json or {}
     url = d.get("url", "").strip()
     mode = d.get("mode", "Video")
     quality = d.get("quality", "Best (Max Quality)")
+    fmt = d.get("format", "mp4")
+    user = d.get("user", "")
 
     if not url:
         return jsonify(error="No URL provided"), 400
@@ -139,7 +139,7 @@ def start_download():
             opts = {
                 'outtmpl': os.path.join(os.path.expanduser("~"), "Downloads", '%(title)s.%(ext)s'),
                 'progress_hooks': [hook],
-                'merge_output_format': 'mp4',
+                'merge_output_format': fmt,
                 'noplaylist': "Playlist" not in mode,
             }
 
@@ -147,7 +147,12 @@ def start_download():
                 opts["format"] = "bestaudio/best"
                 opts["postprocessors"] = [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}]
             else:
-                qmap = {"Best (Max Quality)": "bestvideo+bestaudio/best", "1080p": "bestvideo[height<=1080]+bestaudio/best", "720p": "bestvideo[height<=720]+bestaudio/best"}
+                qmap = {
+                    "Best (Max Quality)": "bestvideo+bestaudio/best",
+                    "4K": "bestvideo[height<=2160]+bestaudio/best",
+                    "1080p": "bestvideo[height<=1080]+bestaudio/best",
+                    "720p": "bestvideo[height<=720]+bestaudio/best",
+                }
                 opts["format"] = qmap.get(quality, "bestvideo+bestaudio/best")
 
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -158,11 +163,11 @@ def start_download():
             job["status"] = "done"
             job["progress"] = 100
             job["done"] = True
-            job["log"].append("✅ Download Finished!")
+            job["log"].append("✅ Download Completed!")
 
         except Exception as e:
             job["status"] = "error"
-            job["log"].append(f"Error: {str(e)}")
+            job["log"].append(f"❌ Error: {str(e)}")
             job["done"] = True
 
     threading.Thread(target=run, daemon=True).start()
@@ -181,12 +186,12 @@ def progress(job_id):
 
 if __name__ == "__main__":
     ip = local_ip()
-    print("\n" + "═"*55)
-    print("   🎥 YTDL — YouTube Downloader")
-    print("═"*55)
-    print(f"   Local   →  http://localhost:5000")
-    print(f"   Network →  http://{ip}:5000")
-    print("═"*55)
+    print("\n" + "═"*60)
+    print("   YTDL — Beautiful YouTube Downloader")
+    print("═"*60)
+    print(f"   Local:   http://localhost:5000")
+    print(f"   Network: http://{ip}:5000")
+    print("═"*60)
     
     threading.Timer(1.5, lambda: webbrowser.open("http://localhost:5000")).start()
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
