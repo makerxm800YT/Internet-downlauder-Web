@@ -70,8 +70,8 @@ body::before{
 .field input::placeholder,.field textarea::placeholder{color:var(--fg3)}
 .field textarea{resize:none}
 
-.auth-err{font-size:11px;color:var(--red);min-height:16px;margin:5px 0 8px;display:none}
-.auth-err.show{display:block;animation:shake .3s}
+.auth-err{font-size:11px;color:var(--red);min-height:0;margin:5px 0 8px;display:none;animation:shake .3s}
+.auth-err.show{display:block}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
 .btn-red{width:100%;padding:12px;border:none;border-radius:var(--rpill);background:linear-gradient(135deg,#ff2828,#cc0000);color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .18s;margin-top:4px;box-shadow:0 4px 22px rgba(255,32,32,.32)}
@@ -390,25 +390,46 @@ body::before{
     </div>
     <div class="auth-card">
       <div class="auth-heading" id="auth-head">Welcome back</div>
-      <div id="f-name" class="field" style="display:none"><label>Your Name</label><input id="inp-name" type="text" placeholder="John Doe"/></div>
-      <div class="field"><label>Email Address</label><input id="inp-email" type="email" placeholder="you@example.com"/></div>
-      <div class="field"><label>Password</label><input id="inp-pw" type="password" placeholder="••••••••"/></div>
-      <div id="f-cpw" class="field" style="display:none"><label>Confirm Password</label><input id="inp-cpw" type="password" placeholder="••••••••"/></div>
-      <div class="auth-err" id="auth-err"></div>
+      <div id="f-name" class="field" style="display:none">
+        <label>Your Name</label>
+        <input id="inp-name" type="text" placeholder="John Doe" autocomplete="name"/>
+      </div>
+      <div class="field">
+        <label>Email Address</label>
+        <input id="inp-email" type="email" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="inp-pw" type="password" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <div id="f-cpw" class="field" style="display:none">
+        <label>Confirm Password</label>
+        <input id="inp-cpw" type="password" placeholder="••••••••" autocomplete="new-password"/>
+      </div>
+      <div class="auth-err" id="auth-err" style="display:none"></div>
       <button class="btn-red" id="auth-btn" onclick="doAuth()">Sign In</button>
       <div class="or-row">or</div>
       <button class="btn-google" onclick="showGDlg()">🔵 Continue with Google</button>
-      <div class="auth-switch"><span id="sw-txt">No account?</span><a onclick="toggleAuthMode()"> Create one</a></div>
+      <div class="auth-switch">
+        <span id="sw-txt">No account?</span>
+        <a id="sw-link" onclick="toggleAuthMode()"> Create one</a>
+      </div>
     </div>
   </div>
 </div>
 
 <!-- ══════════ GOOGLE MODAL ══════════ -->
 <div class="modal-bg" id="gdlg" style="display:none" onclick="if(event.target===this)this.style.display='none'">
-  <div class="modal"><h3>🔵 Continue with Google</h3><p>Enter your Gmail to sign in or create an account</p>
-    <div class="field"><label>Gmail Address</label><input id="g-email" type="email" placeholder="you@gmail.com"/></div>
-    <div class="auth-err" id="g-err"></div>
+  <div class="modal">
+    <h3>🔵 Continue with Google</h3>
+    <p>Enter your Gmail to sign in or create an account</p>
+    <div class="field">
+      <label>Gmail Address</label>
+      <input id="g-email" type="email" placeholder="you@gmail.com" autocomplete="email"/>
+    </div>
+    <div class="auth-err" id="g-err" style="display:none"></div>
     <button class="btn-red" onclick="doGoogle()" style="margin-top:8px">Continue →</button>
+    <button class="btn-google" onclick="document.getElementById('gdlg').style.display='none'" style="margin-top:8px">Cancel</button>
   </div>
 </div>
 
@@ -725,7 +746,6 @@ function pickDD(n,val){
   });
   closeAllDD();savePrefs();
 }
-document.addEventListener('click',e=>{if(!e.target.closest('.opt-group'))closeAllDD()});
 
 /* ══ URL DETECTION ══ */
 function detectURL(url){
@@ -736,54 +756,112 @@ function detectURL(url){
 }
 
 /* ══ AUTH ══ */
+/* ── Toggle login / register ── */
 function toggleAuthMode(){
-  _authMode=_authMode==='login'?'register':'login';
-  const r=_authMode==='register';
-  document.getElementById('auth-head').textContent=r?'Create account':'Welcome back';
-  document.getElementById('auth-btn').textContent=r?'Create Account':'Sign In';
-  document.getElementById('sw-txt').textContent=r?'Already have one?':'No account?';
-  document.querySelector('.auth-switch a').textContent=r?' Sign in':' Create one';
-  document.getElementById('f-name').style.display=r?'':'none';
-  document.getElementById('f-cpw').style.display=r?'':'none';
-  setAE('');
-}
-function setAE(m){const e=document.getElementById('auth-err');e.textContent=m;e.className='auth-err'+(m?' show':'')}
+  _authMode = _authMode === 'login' ? 'register' : 'login';
+  const reg = _authMode === 'register';
 
+  document.getElementById('auth-head').textContent  = reg ? 'Create account'    : 'Welcome back';
+  document.getElementById('auth-btn').textContent   = reg ? 'Create Account'    : 'Sign In';
+  document.getElementById('sw-txt').textContent     = reg ? 'Already have one?' : 'No account?';
+  document.getElementById('sw-link').textContent    = reg ? ' Sign in'          : ' Create one';
+  document.getElementById('f-name').style.display  = reg ? ''     : 'none';
+  document.getElementById('f-cpw').style.display   = reg ? ''     : 'none';
+  setAE('');
+  // Clear fields on switch
+  ['inp-name','inp-email','inp-pw','inp-cpw'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+}
+
+/* ── Error display ── */
+function setAE(m){
+  const e = document.getElementById('auth-err');
+  if(!e) return;
+  e.textContent = m;
+  e.style.display = m ? 'block' : 'none';
+  if(m) e.style.animation = 'none', void e.offsetWidth, e.style.animation = '';
+}
+
+/* ── Sign in / Register ── */
 async function doAuth(){
   setAE('');
-  const email=document.getElementById('inp-email').value.trim().toLowerCase();
-  const pw=document.getElementById('inp-pw').value;
-  if(!email||!email.includes('@')){setAE('Enter a valid email.');return}
-  if(!pw){setAE('Enter your password.');return}
-  if(_authMode==='register'){
-    const name=document.getElementById('inp-name').value.trim();
-    const cpw=document.getElementById('inp-cpw').value;
-    if(!name){setAE('Enter your name.');return}
-    if(pw.length<6){setAE('Password must be 6+ chars.');return}
-    if(pw!==cpw){setAE("Passwords don't match.");return}
-    const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw,name})});
-    const d=await r.json();if(!r.ok){setAE(d.error);return}
-    launch(d);
-  }else{
-    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
-    const d=await r.json();if(!r.ok){setAE(d.error);return}
-    launch(d);
+  const email = (document.getElementById('inp-email').value || '').trim().toLowerCase();
+  const pw    =  document.getElementById('inp-pw').value || '';
+
+  if(!email || !email.includes('@') || !email.includes('.')){
+    setAE('Enter a valid email address.'); return;
+  }
+  if(!pw){ setAE('Enter your password.'); return; }
+
+  if(_authMode === 'register'){
+    const name = (document.getElementById('inp-name').value || '').trim();
+    const cpw  =  document.getElementById('inp-cpw').value || '';
+    if(!name)       { setAE('Enter your full name.');             return; }
+    if(pw.length<6) { setAE('Password must be at least 6 characters.'); return; }
+    if(pw !== cpw)  { setAE("Passwords don't match.");            return; }
+
+    try{
+      const res = await fetch('/api/register',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email, password:pw, name})
+      });
+      const data = await res.json();
+      if(!res.ok){ setAE(data.error || 'Registration failed.'); return; }
+      launch(data);
+    }catch(e){ setAE('Cannot reach server. Is app.py running?'); }
+
+  } else {
+    try{
+      const res = await fetch('/api/login',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email, password:pw})
+      });
+      const data = await res.json();
+      if(!res.ok){ setAE(data.error || 'Login failed.'); return; }
+      launch(data);
+    }catch(e){ setAE('Cannot reach server. Is app.py running?'); }
   }
 }
-document.getElementById('inp-pw').addEventListener('keydown',e=>e.key==='Enter'&&doAuth());
 
-function showGDlg(){document.getElementById('gdlg').style.display='flex';document.getElementById('g-email').value='';document.getElementById('g-err').textContent=''}
-async function doGoogle(){
-  const email=document.getElementById('g-email').value.trim().toLowerCase();
-  const err=document.getElementById('g-err');
-  if(!email||!email.includes('@')){err.textContent='Valid Gmail required';err.className='auth-err show';return}
-  const r=await fetch('/api/google-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-  const d=await r.json();
-  if(!r.ok){err.textContent=d.error;err.className='auth-err show';return}
-  document.getElementById('gdlg').style.display='none';
-  launch(d);
+/* ── Google modal ── */
+function showGDlg(){
+  document.getElementById('gdlg').style.display='flex';
+  const ge=document.getElementById('g-email');
+  if(ge){ ge.value=''; setTimeout(()=>ge.focus(),50); }
+  setGErr('');
 }
-document.getElementById('g-email').addEventListener('keydown',e=>e.key==='Enter'&&doGoogle());
+function setGErr(m){
+  const e=document.getElementById('g-err');
+  if(!e)return;
+  e.textContent=m; e.style.display=m?'block':'none';
+}
+async function doGoogle(){
+  const email=(document.getElementById('g-email').value||'').trim().toLowerCase();
+  if(!email||!email.includes('@')){ setGErr('Enter a valid Gmail address.'); return; }
+  try{
+    const res = await fetch('/api/google-login',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email})
+    });
+    const data = await res.json();
+    if(!res.ok){ setGErr(data.error||'Failed.'); return; }
+    document.getElementById('gdlg').style.display='none';
+    launch(data);
+  }catch(e){ setGErr('Cannot reach server. Is app.py running?'); }
+}
+
+/* ── Keyboard enter on all auth inputs ── */
+window.addEventListener('DOMContentLoaded',()=>{
+  const pw = document.getElementById('inp-pw');
+  if(pw) pw.addEventListener('keydown', e=>{ if(e.key==='Enter') doAuth(); });
+  const ge = document.getElementById('g-email');
+  if(ge) ge.addEventListener('keydown', e=>{ if(e.key==='Enter') doGoogle(); });
+  const em = document.getElementById('inp-email');
+  if(em) em.addEventListener('keydown', e=>{ if(e.key==='Enter') doAuth(); });
+  // Close dropdowns on outside click
+  document.addEventListener('click',e=>{if(!e.target.closest('.opt-group'))closeAllDD()});
+});
 
 function launch(user){
   U=user;
@@ -1058,7 +1136,6 @@ async function doUpdate(btn){
 }
 
 /* ══ RATE ══ */
-let _stars=0;
 function hoverStar(n){document.querySelectorAll('.star').forEach((s,i)=>s.className='star'+(i<n?' lit':''))}
 function resetStar(){renderStars()}
 function setStar(n){_stars=n;renderStars()}
