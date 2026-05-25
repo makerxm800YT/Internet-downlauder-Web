@@ -1,5 +1,6 @@
 <div align="center">
 <img src="favicon.svg" width="90" alt="IDLR Logo"/>
+
 # IDLR — Internet Downloader
 **Download Anything. Zero Limits.**
 
@@ -11,6 +12,7 @@
 *A beautiful, fast, local web app for downloading from YouTube, Spotify, TikTok, Instagram and 1000+ other sites.*
 
 **Fast • Private • Unlimited • Self-hosted**
+
 </div>
 
 ---
@@ -20,29 +22,32 @@
 | | What it does |
 |---|---|
 | ⬇ | **Download from 1000+ sites** — YouTube, Spotify, TikTok, Instagram, SoundCloud, Twitter & more |
-| 🎥 | **YouTube** — Videos, Shorts, Playlists (up to 4K) |
-| 🎵 | **Spotify** — Tracks, Albums, Playlists (high quality audio) |
-| 📋 | **Full Playlist Support** — Download entire playlists easily |
-| 🔊 | **Audio Only** — MP3, M4A, Opus at high bitrate |
-| 🖼 | **Rich History** — Thumbnails + details for every download |
-| 👤 | **User Accounts** — Email or Google sign-in, saved preferences |
+| 🎥 | **YouTube** — Videos, Shorts, Playlists (up to 8K) |
+| 🎵 | **Spotify** — Tracks, Albums, Playlists (320kbps high quality audio) |
+| 📋 | **Full Playlist Support** — Download entire playlists with one click |
+| 🔊 | **Audio Only** — MP3, M4A, Opus, WAV, FLAC at selectable bitrates |
+| 🎚️ | **Quality Options** — 8K → 4K → 1080p → 720p, plus audio bitrate control |
+| 🖼 | **Rich History** — Thumbnails + metadata for every download |
+| 👤 | **User Accounts** — Email or Google sign-in, saved preferences & profile |
 | 🌐 | **Network Sharing** — Use from phone or any device on same WiFi |
-| 🎨 | **Modern UI** — Smooth animations, dark theme, clean design |
-| 🔄 | **One-Click Update** — Update yt-dlp & spotdl from the app |
-| 📁 | **Custom Save Folder** — Choose where files are saved |
+| 🎨 | **Modern UI** — Smooth animations, dark theme, glass morphism design |
+| 🔄 | **One-Click Update** — Update yt-dlp & spotdl from within the app |
+| 📁 | **Custom Save Folder** — Choose exactly where files are saved |
+| 💾 | **Persistent Settings** — Your preferences survive page refresh |
+| 🚫 | **Zero Cookies** — No tracking, no ads, 100% private |
 
 ---
 
 ## 🚀 Quick Start
 
 ### Windows (Recommended)
+
 1. Install **Python** from [python.org](https://python.org/downloads)  
-   → **Important:** Check "Add Python to PATH"
-2. Double-click **`START - Click Here.bat`**
+   → **Important:** Check ✅ "Add Python to PATH" during installation
 
-Browser will open automatically at `http://localhost:5000`
+2. Double-click **`START - Click Here.bat`** (create this file with the commands below)
 
-### Mac / Linux
-```bash
-python -m pip install flask yt-dlp static-ffmpeg spotdl
-python app.py
+   Or manually open Command Prompt and run:
+   ```cmd
+   pip install flask flask-cors yt-dlp spotdl
+   python app.py
