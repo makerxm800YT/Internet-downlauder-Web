@@ -1,399 +1,429 @@
 #!/usr/bin/env python3
 """
 IDLR — Internet Downloader
-YouTube · Spotify · SoundCloud · Twitter · Instagram · TikTok and more
-Fast · Private · Unlimited
+YouTube · Spotify · SoundCloud · TikTok · Instagram and more
 """
-import subprocess, sys, os, logging
+import subprocess
+import sys
+import os
+import logging
 
-# Suppress verbose logging
-logging.getLogger('flask').setLevel(logging.WARNING)
-logging.getLogger('werkzeug').setLevel(logging.WARNING)
+logging.getLogger("flask").setLevel(logging.WARNING)
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
+
 
 def pip(pkg):
-    subprocess.check_call([sys.executable,"-m","pip","install",pkg,"-q"],
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", pkg, "-q"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
-# Install dependencies silently
-for p,i in [("flask","flask"),("yt-dlp","yt_dlp"),("static-ffmpeg","static_ffmpeg"),("spotdl","spotdl")]:
-    try: __import__(i)
-    except: print(f"  Installing {p}..."); pip(p)
+
+for pkg, mod in [
+    ("flask", "flask"),
+    ("yt-dlp", "yt_dlp"),
+    ("static-ffmpeg", "static_ffmpeg"),
+    ("spotdl", "spotdl"),
+]:
+    try:
+        __import__(mod)
+    except ImportError:
+        print(f"  Installing {pkg}...")
+        pip(pkg)
 
 from flask import Flask, request, jsonify, Response, send_from_directory
-import yt_dlp, static_ffmpeg, shutil, json, hashlib, datetime, base64
-import threading, uuid, re, time, socket, webbrowser
+import yt_dlp
+import static_ffmpeg
+import shutil
+import json
+import datetime
+import threading
+import uuid
+import re
+import time
+import socket
+import webbrowser
 
 static_ffmpeg.add_paths()
 FFMPEG = shutil.which("ffmpeg") or ""
 
-# ── Storage ───────────────────────────────────────────────────────────
-APP_DIR   = os.path.join(os.path.expanduser("~"), ".idlr_app")
-ACCS_FILE = os.path.join(APP_DIR, "accounts.json")
+APP_DIR = os.path.join(os.path.expanduser("~"), ".idlr_app")
 HIST_FILE = os.path.join(APP_DIR, "history.json")
+LOCAL_USER = "local"
 DOWNLOADS_DIR = os.path.join(os.path.expanduser("~"), "Downloads")
 os.makedirs(APP_DIR, exist_ok=True)
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
-
-def jload(p, d):
-    try:
-        with open(p) as f: return json.load(f)
-    except: return d
-
-def jsave(p, d):
-    with open(p,"w") as f: json.dump(d, f, indent=2)
-
-def hashpw(pw): return hashlib.sha256(pw.encode()).hexdigest()
-
-def local_ip():
-    try:
-        s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8",80)); ip=s.getsockname()[0]; s.close(); return ip
-    except: return "localhost"
-
-def is_spotify(url):
-    return "spotify.com" in url or url.startswith("spotify:")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=SCRIPT_DIR, template_folder=SCRIPT_DIR)
 _jobs = {}
 _jobs_lock = threading.Lock()
 
-# ── Static ────────────────────────────────────────────────────────────
+
+def jload(path, default):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        if os.path.exists(path):
+            try:
+                os.replace(path, path + ".bak")
+            except OSError:
+                pass
+        return default
+
+
+def jsave(path, data):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def fix_path(path):
+    """Turn ~/Downloads or %USERPROFILE%\\Downloads into a real folder."""
+    if not path:
+        return DOWNLOADS_DIR
+    path = os.path.expandvars(path.strip())
+    path = os.path.expanduser(path)
+    return path
+
+
+def local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except OSError:
+        return "localhost"
+
+
+def is_spotify(url):
+    return "spotify.com" in url or url.startswith("spotify:")
+
+
 @app.route("/")
-def index(): return send_from_directory(SCRIPT_DIR, "index.html")
+def index():
+    return send_from_directory(SCRIPT_DIR, "index.html")
+
 
 @app.route("/favicon.svg")
-def favicon(): return send_from_directory(SCRIPT_DIR, "favicon.svg")
+def favicon():
+    return send_from_directory(SCRIPT_DIR, "favicon.svg")
 
-# ── Auth ────────────────────────────────────────────────────────────
-def _user_resp(email, u):
-    return jsonify(ok=True, name=u["name"], email=email,
-                   username=u.get("username",""),
-                   bio=u.get("bio",""),
-                   avatar=u.get("avatar",""),
-                   method=u.get("method","email"),
-                   prefs=u.get("prefs",{}),
-                   joined=u.get("joined",""))
 
-@app.route("/api/register", methods=["POST"])
-def register():
-    d=request.json or {}
-    accs=jload(ACCS_FILE,{})
-    email=d.get("email","").strip().lower()
-    pw=d.get("password",""); name=d.get("name","").strip()
-    if not email or "@" not in email: return jsonify(error="Invalid email"),400
-    if not pw or len(pw)<6: return jsonify(error="Password must be 6+ characters"),400
-    if not name: return jsonify(error="Name required"),400
-    if email in accs: return jsonify(error="Account already exists"),409
-    accs[email]={"name":name,"pw_hash":hashpw(pw),"joined":str(datetime.date.today()),
-                 "method":"email","prefs":{},"username":"","bio":"","avatar":""}
-    jsave(ACCS_FILE,accs)
-    return _user_resp(email, accs[email])
-
-@app.route("/api/login", methods=["POST"])
-def login():
-    d=request.json or {}
-    accs=jload(ACCS_FILE,{})
-    email=d.get("email","").strip().lower(); pw=d.get("password","")
-    if email not in accs: return jsonify(error="No account with this email"),404
-    if accs[email].get("pw_hash")!=hashpw(pw): return jsonify(error="Wrong password"),401
-    return _user_resp(email, accs[email])
-
-@app.route("/api/google-login", methods=["POST"])
-def google_login():
-    d=request.json or {}
-    accs=jload(ACCS_FILE,{})
-    email=d.get("email","").strip().lower()
-    if not email or "@" not in email: return jsonify(error="Invalid Gmail"),400
-    if email not in accs:
-        gname=email.split("@")[0].replace("."," ").title()
-        accs[email]={"name":gname,"pw_hash":"","joined":str(datetime.date.today()),
-                     "method":"google","prefs":{},"username":"","bio":"","avatar":""}
-        jsave(ACCS_FILE,accs)
-    return _user_resp(email, accs[email])
-
-# ── Profile update ─────────────────────────────────────────────────────────
-@app.route("/api/profile", methods=["POST"])
-def update_profile():
-    d=request.json or {}
-    email=d.get("user","").strip().lower()
-    accs=jload(ACCS_FILE,{})
-    if email not in accs: return jsonify(error="User not found"),404
-    u=accs[email]
-    if "name"     in d and d["name"].strip():     u["name"]     = d["name"].strip()[:40]
-    if "username" in d:                            u["username"] = d["username"].strip()[:24]
-    if "bio"      in d:                            u["bio"]      = d["bio"].strip()[:160]
-    if "avatar"   in d:                            u["avatar"]   = d["avatar"]
-    jsave(ACCS_FILE,accs)
-    return _user_resp(email, u)
-
-# ── Prefs ────────────────────────────────────────────────────────────
-@app.route("/api/prefs", methods=["POST"])
-def save_prefs():
-    d=request.json or {}
-    email=d.get("user","").strip().lower(); prefs=d.get("prefs",{})
-    accs=jload(ACCS_FILE,{})
-    if email not in accs: return jsonify(error="User not found"),404
-    accs[email]["prefs"]=prefs; jsave(ACCS_FILE,accs)
-    return jsonify(ok=True)
-
-# ── History ───────────────────────────────────────────────────────────
 @app.route("/api/history")
 def get_history():
-    email=request.args.get("user","")
-    hist=jload(HIST_FILE,[])
-    return jsonify([h for h in hist if h.get("user")==email][-80:])
+    hist = jload(HIST_FILE, [])
+    return jsonify(hist[-80:])
+
 
 @app.route("/api/history/clear", methods=["DELETE"])
 def clear_history():
-    email=request.args.get("user","")
-    jsave(HIST_FILE,[h for h in jload(HIST_FILE,[]) if h.get("user")!=email])
+    jsave(HIST_FILE, [])
     return jsonify(ok=True)
+
 
 @app.route("/api/history/remove", methods=["DELETE"])
 def remove_history_item():
-    d=request.json or {}
-    email=d.get("user",""); url=d.get("url","")
-    hist=[h for h in jload(HIST_FILE,[])
-          if not(h.get("user")==email and h.get("url")==url)]
-    jsave(HIST_FILE,hist)
+    data = request.json or {}
+    url = data.get("url", "")
+    hist = [h for h in jload(HIST_FILE, []) if h.get("url") != url]
+    jsave(HIST_FILE, hist)
     return jsonify(ok=True)
 
-# ── Spotify download via spotdl ───────────────────────────────────────────────
+
+def _save_hist(user, url, title, thumb, mode, quality, fmt, status):
+    hist = jload(HIST_FILE, [])
+    entry = {
+        "user": user,
+        "url": url,
+        "title": title,
+        "thumb": thumb,
+        "mode": mode,
+        "quality": quality,
+        "format": fmt,
+        "status": status,
+        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+    }
+    hist = [h for h in hist if not (h.get("user") == user and h.get("url") == url)]
+    hist.append(entry)
+    jsave(HIST_FILE, hist)
+
+
 def _spotify_run(job, url, savepath, user, fmt):
-    """Download Spotify track/album/playlist using spotdl"""
     os.makedirs(savepath, exist_ok=True)
-    job["log"].append({"t":"🎵 Detected Spotify — downloading audio…","c":"dim"})
-    job["status"]="downloading"
+    job["log"].append({"t": "Spotify — downloading audio...", "c": "dim"})
+    job["status"] = "downloading"
 
     title = url
     thumb = ""
 
-    # Get metadata
     try:
         from spotdl.types.song import Song
-        try:
-            songs = Song.from_url(url)
-            if isinstance(songs, list): songs = songs[:1]
-            else: songs = [songs]
-            if songs:
-                title = songs[0].display_name or url
-                thumb = songs[0].cover_url or ""
-                job["title"] = title
-                job["thumb"] = thumb
-                job["log"].append({"t": f"📝 {title}", "c":"dim"})
-        except Exception as e: 
-            job["log"].append({"t": f"⚠ Could not fetch metadata: {str(e)[:50]}", "c":"dim"})
-    except Exception as e: 
-        job["log"].append({"t": f"⚠ Metadata error: {str(e)[:50]}", "c":"dim"})
 
-    audio_fmt = fmt if fmt in ("mp3","m4a","opus","ogg","flac") else "mp3"
+        songs = Song.from_url(url)
+        if isinstance(songs, list):
+            songs = songs[:1]
+        else:
+            songs = [songs]
+        if songs:
+            title = songs[0].display_name or url
+            thumb = songs[0].cover_url or ""
+            job["title"] = title
+            job["thumb"] = thumb
+            job["log"].append({"t": title, "c": "dim"})
+    except Exception as e:
+        job["log"].append({"t": f"Metadata warning: {str(e)[:50]}", "c": "dim"})
 
-    try:
-        job["log"].append({"t": f"⏳ Downloading as {audio_fmt.upper()}…", "c":"dim"})
-        result = subprocess.run(
-            [sys.executable, "-m", "spotdl",
-             "--output", savepath,
-             "--format", audio_fmt,
-             "--bitrate", "320k",
-             url],
-            capture_output=True, text=True, timeout=900
-        )
-        out = (result.stdout or "") + (result.stderr or "")
-        
+    audio_fmt = fmt if fmt in ("mp3", "m4a", "opus", "ogg", "flac") else "mp3"
+
+    job["log"].append({"t": f"Downloading as {audio_fmt.upper()}...", "c": "dim"})
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "spotdl",
+            "--output",
+            savepath,
+            "--format",
+            audio_fmt,
+            "--bitrate",
+            "320k",
+            url,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+    )
+    out = (result.stdout or "") + (result.stderr or "")
+
+    if "Error" in out or "Failed" in out:
         for line in out.split("\n"):
             line = line.strip()
-            if not line: continue
-            if "Downloaded" in line or "Skipping" in line or "Found" in line:
-                job["log"].append({"t": line, "c":"ok"})
-            elif "Error" in line or "Failed" in line:
-                job["log"].append({"t": line, "c":"err"})
-            else:
-                job["log"].append({"t": line, "c":"dim"})
+            if line and ("Error" in line or "Failed" in line):
+                job["log"].append({"t": line[:120], "c": "err"})
+                break
 
-        if result.returncode == 0 or "Downloaded" in out or "Skipping" in out:
-            job.update({"status":"done","progress":100,"done":True})
-            job["log"].append({"t":"✓ Download complete!","c":"ok"})
-            _save_hist(user, url, title, thumb, "Spotify", "Audio", audio_fmt, "done")
-        else:
-            raise Exception(f"spotdl failed with code {result.returncode}")
-    except subprocess.TimeoutExpired:
-        raise Exception("Download timeout (15 min limit)")
-    except Exception as e:
-        raise e
-
-# ── Generic yt-dlp download ───────────────────────────────────────────────────
-def _ytdlp_run(job, url, mode, quality, fmt, savepath, user):
-    """Download using yt-dlp with improved error handling"""
-    q_map={
-        "Best (Max Quality)":"bestvideo+bestaudio/best",
-        "4K":"bestvideo[height<=2160]+bestaudio/best",
-        "1080p":"bestvideo[height<=1080]+bestaudio/best",
-        "720p":"bestvideo[height<=720]+bestaudio/best",
-        "480p":"bestvideo[height<=480]+bestaudio/best",
-        "360p":"bestvideo[height<=360]+bestaudio/best",
-    }
-    
-    try:
-        os.makedirs(savepath, exist_ok=True)
-    except Exception as e:
-        raise Exception(f"Cannot create directory: {str(e)}")
-    
-    opts={
-        "outtmpl":os.path.join(savepath,"%(title)s.%(ext)s"),
-        "noplaylist":"Playlist" not in mode,
-        "quiet":False,
-        "no_warnings":False,
-        "ignoreerrors":False,
-        "progress_hooks":[lambda d:_hook(job,d)],
-        "socket_timeout":30,
-        "connection_timeout":30,
-        "extractor_args":{"youtube":{"player_client":["web"]}},
-    }
-    
-    if FFMPEG: 
-        opts["ffmpeg_location"]=os.path.dirname(FFMPEG)
-    
-    if "Audio" in mode or fmt in ("mp3","m4a"):
-        ext=fmt if fmt in("mp3","m4a") else "mp3"
-        opts["format"]="bestaudio/best"
-        opts["postprocessors"]=[{"key":"FFmpegExtractAudio",
-                                 "preferredcodec":ext,"preferredquality":"320"}]
+    if result.returncode == 0 or "Downloaded" in out or "Skipping" in out:
+        job.update({"status": "done", "progress": 100, "done": True})
+        job["log"].append({"t": "Download complete!", "c": "ok"})
+        _save_hist(LOCAL_USER, url, title, thumb, "Spotify", "Audio", audio_fmt, "done")
     else:
-        opts["format"]=q_map.get(quality,"bestvideo+bestaudio/best")
-        opts["merge_output_format"]=fmt if fmt in("mp4","mkv","webm") else "mp4"
+        raise RuntimeError(f"spotdl failed (code {result.returncode})")
 
-    title=url; thumb=""
+
+def _ytdlp_run(job, url, mode, quality, fmt, savepath, user):
+    q_map = {
+        "Best (Max Quality)": "bestvideo+bestaudio/best",
+        "8K": "bestvideo[height<=4320]+bestaudio/best",
+        "4K": "bestvideo[height<=2160]+bestaudio/best",
+        "1440p": "bestvideo[height<=1440]+bestaudio/best",
+        "1080p": "bestvideo[height<=1080]+bestaudio/best",
+        "720p": "bestvideo[height<=720]+bestaudio/best",
+        "480p": "bestvideo[height<=480]+bestaudio/best",
+        "360p": "bestvideo[height<=360]+bestaudio/best",
+        "240p": "bestvideo[height<=240]+bestaudio/best",
+        "144p": "bestvideo[height<=144]+bestaudio/best",
+    }
+    bitrate_map = {"320k": "320", "256k": "256", "192k": "192", "128k": "128", "96k": "96"}
+
+    os.makedirs(savepath, exist_ok=True)
+
+    opts = {
+        "outtmpl": os.path.join(savepath, "%(title)s.%(ext)s"),
+        "noplaylist": "Playlist" not in mode,
+        "quiet": True,
+        "no_warnings": True,
+        "progress_hooks": [lambda d: _hook(job, d)],
+        "socket_timeout": 30,
+        "extractor_args": {"youtube": {"player_client": ["web"]}},
+    }
+
+    if FFMPEG:
+        opts["ffmpeg_location"] = os.path.dirname(FFMPEG)
+
+    if "Audio" in mode or fmt in ("mp3", "m4a", "flac", "wav", "opus"):
+        ext = fmt if fmt in ("mp3", "m4a", "flac", "wav", "opus") else "mp3"
+        br = bitrate_map.get(quality, "320")
+        opts["format"] = "bestaudio/best"
+        opts["postprocessors"] = [
+            {"key": "FFmpegExtractAudio", "preferredcodec": ext, "preferredquality": br}
+        ]
+    else:
+        opts["format"] = q_map.get(quality, "bestvideo+bestaudio/best")
+        opts["merge_output_format"] = fmt if fmt in ("mp4", "mkv", "webm") else "mp4"
+
+    title = url
+    thumb = ""
+
+    job["log"].append({"t": "Fetching info...", "c": "dim"})
     try:
-        job["log"].append({"t": f"📝 Fetching info…", "c":"dim"})
-        with yt_dlp.YoutubeDL({"quiet":False,"no_warnings":False}) as y:
-            try:
-                info=y.extract_info(url,download=False)
-                title=info.get("title",url)[:80]
-                thumb=info.get("thumbnail","")
-                job["title"]=title; job["thumb"]=thumb
-                job["log"].append({"t":f"✓ {title}","c":"dim"})
-            except Exception as e:
-                job["log"].append({"t": f"⚠ Could not fetch metadata: {str(e)[:60]}", "c":"dim"})
-                title = "Download"
-        
-        job["status"]="downloading"
-        job["log"].append({"t": f"⏳ Downloading ({quality})…", "c":"dim"})
-        
-        with yt_dlp.YoutubeDL(opts) as y:
-            y.download([url])
-        
-        job.update({"status":"done","progress":100,"done":True})
-        job["log"].append({"t":"✓ Download complete!","c":"ok"})
-        job["log"].append({"t":f"💾 Saved to {savepath}","c":"ok"})
-        _save_hist(user, url, title, thumb, mode, quality, fmt, "done")
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
+            info = ydl.extract_info(url, download=False)
+            title = info.get("title", url)[:80]
+            thumb = info.get("thumbnail", "")
+            job["title"] = title
+            job["thumb"] = thumb
+            job["log"].append({"t": title, "c": "dim"})
     except Exception as e:
-        err_msg = str(e)[:150]
-        job.update({"status":"error","error":err_msg,"done":True})
-        job["log"].append({"t":f"✗ Error: {err_msg}","c":"err"})
-        job["log"].append({"t":"💡 Try: different quality, update yt-dlp, or check URL","c":"dim"})
-        _save_hist(user, url, title, thumb, mode, quality, fmt, "error")
+        job["log"].append({"t": f"Metadata warning: {str(e)[:60]}", "c": "dim"})
 
-def _save_hist(user, url, title, thumb, mode, quality, fmt, status):
-    hist=jload(HIST_FILE,[])
-    entry={"user":user,"url":url,"title":title,"thumb":thumb,"mode":mode,
-           "quality":quality,"format":fmt,"status":status,
-           "date":datetime.datetime.now().strftime("%Y-%m-%d %H:%M")}
-    hist=[h for h in hist if not(h.get("user")==user and h.get("url")==url)]
-    hist.append(entry)
-    jsave(HIST_FILE,hist)
+    job["status"] = "downloading"
+    job["log"].append({"t": f"Downloading ({quality})...", "c": "dim"})
 
-# ── Download endpoint ────────────────────────────────────────────────────────
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        ydl.download([url])
+
+    job.update({"status": "done", "progress": 100, "done": True})
+    job["log"].append({"t": "Download complete!", "c": "ok"})
+    job["log"].append({"t": f"Saved to {savepath}", "c": "ok"})
+    _save_hist(LOCAL_USER, url, title, thumb, mode, quality, fmt, "done")
+
+
 @app.route("/api/download", methods=["POST"])
 def start_download():
-    d=request.json or {}
-    url=d.get("url","").strip(); mode=d.get("mode","Video")
-    quality=d.get("quality","Best (Max Quality)"); fmt=d.get("format","mp4")
-    savepath=d.get("path","").strip() or DOWNLOADS_DIR
-    user=d.get("user","")
-    
-    if not url: return jsonify(error="No URL provided"),400
-    if not url.startswith(("http://","https://","spotify:")): 
-        return jsonify(error="Invalid URL format"),400
+    data = request.json or {}
+    url = data.get("url", "").strip()
+    mode = data.get("mode", "Video")
+    quality = data.get("quality", "Best (Max Quality)")
+    fmt = data.get("format", "mp4")
+    savepath = fix_path(data.get("path", ""))
+    if not url:
+        return jsonify(error="No URL provided"), 400
+    if not url.startswith(("http://", "https://", "spotify:")):
+        return jsonify(error="Invalid URL format"), 400
 
-    jid=str(uuid.uuid4())[:8]
+    jid = str(uuid.uuid4())[:8]
     with _jobs_lock:
-        _jobs[jid]={"status":"starting","progress":0,"speed":"","eta":"",
-                    "log":[],"title":"","thumb":"","error":None,"done":False}
+        _jobs[jid] = {
+            "status": "starting",
+            "progress": 0,
+            "speed": "",
+            "eta": "",
+            "log": [],
+            "title": "",
+            "thumb": "",
+            "error": None,
+            "done": False,
+        }
 
     def run():
-        job=_jobs[jid]
+        job = _jobs[jid]
         try:
-            job["log"].append({"t": f"🚀 Starting download…", "c":"dim"})
+            job["log"].append({"t": "Starting download...", "c": "dim"})
             if is_spotify(url):
-                _spotify_run(job, url, savepath, user, fmt)
+                _spotify_run(job, url, savepath, LOCAL_USER, fmt)
             else:
-                _ytdlp_run(job, url, mode, quality, fmt, savepath, user)
+                _ytdlp_run(job, url, mode, quality, fmt, savepath, LOCAL_USER)
         except Exception as e:
-            with _jobs_lock:
-                err_msg = str(e)[:150]
-                job.update({"status":"error","error":err_msg,"done":True})
-                job["log"].append({"t":f"✗ {err_msg}","c":"err"})
+            err_msg = str(e)[:150]
+            job.update({"status": "error", "error": err_msg, "done": True})
+            job["log"].append({"t": err_msg, "c": "err"})
 
     threading.Thread(target=run, daemon=True).start()
     return jsonify(job_id=jid)
 
+
 def _hook(job, d):
-    if d["status"]=="downloading":
-        raw=d.get("_percent_str","0%").strip()
-        pct=float(re.sub(r"[^\d.]","",raw) or 0)
+    if d["status"] == "downloading":
+        raw = d.get("_percent_str", "0%").strip()
+        pct = float(re.sub(r"[^\d.]", "", raw) or 0)
         with _jobs_lock:
-            job.update({"progress":pct,"speed":d.get("_speed_str","").strip(),
-                        "eta":d.get("_eta_str","").strip()})
-    elif d["status"]=="finished":
+            job.update(
+                {
+                    "progress": pct,
+                    "speed": d.get("_speed_str", "").strip(),
+                    "eta": d.get("_eta_str", "").strip(),
+                }
+            )
+    elif d["status"] == "finished":
         with _jobs_lock:
-            job["status"]="post-processing"
-            job["log"].append({"t":"🔄 Post-processing…","c":"dim"})
+            job["status"] = "post-processing"
+            job["log"].append({"t": "Post-processing...", "c": "dim"})
+
 
 @app.route("/api/progress/<jid>")
 def progress(jid):
     def stream():
-        ll=0
+        last = 0
         while True:
             with _jobs_lock:
-                job=_jobs.get(jid)
-            if not job: yield f"data:{json.dumps({'error':'not found'})}\n\n"; break
+                job = _jobs.get(jid)
+            if not job:
+                yield f"data:{json.dumps({'error': 'not found'})}\n\n"
+                break
             with _jobs_lock:
-                new=job["log"][ll:]; ll=len(job["log"])
-                status=job["status"]; progress_val=job["progress"]; speed=job["speed"]
-                eta=job["eta"]; title=job["title"]; thumb=job.get("thumb",""); done=job["done"]
-            yield f"data:{json.dumps({'status':status,'progress':progress_val,'speed':speed,'eta':eta,'title':title,'thumb':thumb,'logs':new,'done':done})}\n\n"
-            if done: break
+                new_logs = job["log"][last:]
+                last = len(job["log"])
+                payload = {
+                    "status": job["status"],
+                    "progress": job["progress"],
+                    "speed": job["speed"],
+                    "eta": job["eta"],
+                    "title": job["title"],
+                    "thumb": job.get("thumb", ""),
+                    "logs": new_logs,
+                    "done": job["done"],
+                    "error": job.get("error"),
+                }
+            yield f"data:{json.dumps(payload)}\n\n"
+            if job["done"]:
+                break
             time.sleep(0.3)
-    return Response(stream(),mimetype="text/event-stream",
-                    headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
+
+    return Response(
+        stream(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
 
 @app.route("/api/info")
 def info():
-    return jsonify(ytdlp=yt_dlp.version.__version__,
-                   ffmpeg=bool(FFMPEG),
-                   network=f"http://{local_ip()}:5000")
+    return jsonify(
+        ytdlp=yt_dlp.version.__version__,
+        ffmpeg=bool(FFMPEG),
+        network=f"http://{local_ip()}:5000",
+        downloads=DOWNLOADS_DIR,
+    )
+
 
 @app.route("/api/update-ytdlp", methods=["POST"])
 def update_ytdlp():
     try:
-        subprocess.check_output([sys.executable,"-m","pip","install","--upgrade","yt-dlp","spotdl"],
-                                 stderr=subprocess.STDOUT, timeout=300)
-        import importlib; importlib.reload(yt_dlp)
-        return jsonify(ok=True,msg=f"Updated! yt-dlp v{yt_dlp.version.__version__}")
-    except Exception as e:
-        return jsonify(ok=False,msg=str(e)[:100])
+        subprocess.check_output(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp", "spotdl"],
+            stderr=subprocess.STDOUT,
+            timeout=300,
+        )
+        import importlib
 
-if __name__=="__main__":
-    ip=local_ip()
-    print("\n"+"━"*54)
-    print("  IDLR — Internet Downloader")
-    print("  YouTube · Spotify · SoundCloud · and more")
-    print("━"*54)
-    print(f"  ▸ Local    http://localhost:5000")
-    print(f"  ▸ Network  http://{ip}:5000")
-    print("━"*54)
-    print("  Keep this window open while using the app.")
-    print("  Press Ctrl+C to stop.\n")
-    threading.Timer(1.4,lambda:webbrowser.open("http://localhost:5000")).start()
-    app.run(host="0.0.0.0",port=5000,debug=False,threaded=True)
+        importlib.reload(yt_dlp)
+        return jsonify(ok=True, msg=f"Updated! yt-dlp v{yt_dlp.version.__version__}")
+    except Exception as e:
+        return jsonify(ok=False, msg=str(e)[:100])
+
+
+def _run_server():
+    ip = local_ip()
+    threading.Timer(1.2, lambda: webbrowser.open("http://localhost:5000")).start()
+    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+
+
+if __name__ == "__main__":
+    os.chdir(SCRIPT_DIR)
+
+    # Double-click on Windows: restart without a terminal window
+    if sys.platform == "win32" and not os.environ.get("IDLR_RUNNING"):
+        pyw = sys.executable.replace("python.exe", "pythonw.exe").replace(
+            "Python.exe", "pythonw.exe"
+        )
+        if os.path.isfile(pyw):
+            env = os.environ.copy()
+            env["IDLR_RUNNING"] = "1"
+            subprocess.Popen([pyw, os.path.abspath(__file__)], env=env, cwd=SCRIPT_DIR)
+            sys.exit(0)
+
+    _run_server()
