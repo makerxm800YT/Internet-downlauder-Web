@@ -14,12 +14,15 @@
   --red:#ff2020;--red2:#cc0000;--redglow:rgba(255,32,32,.18);--redsoft:rgba(255,32,32,.08);
   --grn:#1ed760;--ylw:#f59e0b;--blue:#4c8bff;--purple:#a855f7;
   --spotify:#1ed760;
-  --fg:#f0f0f0;--fg2:#888;--fg3:#555;--fg4:#1a1a1a; /* Better grey visibility */
+  --fg:#f0f0f0;--fg2:#888;--fg3:#555;--fg4:#1a1a1a;
   --r:14px;--rpill:999px;
+  --transition:all .2s cubic-bezier(.4,0,.2,1);
 }
+
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--fg);overflow:hidden}
 ::selection{background:var(--red);color:#fff}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:var(--rpill)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:var(--rpill);transition:background .2s}
+::-webkit-scrollbar-thumb:hover{background:var(--fg2)}
 
 body::before{
   content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -27,51 +30,132 @@ body::before{
   background-size:48px 48px;
   mask-image:radial-gradient(ellipse 100% 55% at 50% 0%,black,transparent);
 }
+
 .blob{position:fixed;width:800px;height:800px;border-radius:50%;
   background:radial-gradient(circle,rgba(255,32,32,.055) 0%,transparent 70%);
   pointer-events:none;z-index:0;top:-300px;left:50%;transform:translateX(-50%);
-  animation:blob 8s ease-in-out infinite;}
+  animation:blob 8s ease-in-out infinite;will-change:transform}
 @keyframes blob{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.1)}}
 
-/* HERO - Remastered Smooth Animation */
-.dl-hero{text-align:center;padding:22px 0 16px}
-.hero-title{font-family:'Unbounded',sans-serif;font-size:22.5px;font-weight:900;line-height:1.18;overflow:hidden}
-.hw{display:inline-block;background:linear-gradient(135deg,#fff 0%,#ff7070 55%,#ff2020 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0;transform:translateY(28px);animation:wIn .75s cubic-bezier(.16,1,.3,1) forwards}
+/* HERO */
+.dl-hero{text-align:center;padding:24px 0 18px}
+.hero-title{font-family:'Unbounded',sans-serif;font-size:clamp(20px,5vw,24px);font-weight:900;line-height:1.18;overflow:hidden}
+.hw{display:inline-block;background:linear-gradient(135deg,#fff 0%,#ff7070 55%,#ff2020 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0;transform:translateY(10px);animation:wIn .6s ease-out forwards}
 .hw:nth-child(1){animation-delay:.05s}.hw:nth-child(2){animation-delay:.13s}.hw:nth-child(3){animation-delay:.22s;margin-left:.3em}.hw:nth-child(4){animation-delay:.31s}
 @keyframes wIn{to{opacity:1;transform:none}}
 
-/* Better grey text + softer red hover */
+.hero-sub{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;padding:0 16px}
+.hero-chip{background:var(--s3);border:1px solid var(--bdr);padding:6px 12px;border-radius:var(--rpill);font-size:12px;color:var(--fg2);transition:var(--transition);cursor:default}
+.hero-chip:hover{background:var(--s4);color:var(--fg);border-color:rgba(255,32,32,.2)}
+
+/* Better grey text */
 .clabel,.opt-label,.now-status,.hi-meta,.sys-key,.footer-link,.hero-sub,.path-text{color:var(--fg3)}
 .stat-txt,.pop-handle{color:var(--fg2)}
-.pill:hover{background:var(--s4);color:var(--fg)}
+
+.card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:16px 18px;margin-bottom:12px;transition:var(--transition)}
+.card:hover{border-color:var(--bdr2);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+
+.url-inp{flex:1;background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);padding:10px 16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--fg);outline:none;transition:var(--transition);will-change:border-color}
+.url-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft);background:var(--s4)}
+
+.pill{background:var(--s3);border:1px solid var(--bdr2);color:var(--fg);padding:8px 14px;border-radius:var(--rpill);cursor:pointer;font-size:13px;font-weight:500;transition:var(--transition);display:inline-flex;align-items:center;gap:6px}
+.pill:hover{background:var(--s4);color:var(--fg);border-color:rgba(255,32,32,.2)}
+.pill.outline{background:transparent;border-color:var(--bdr)}
 .pill.outline:hover{border-color:rgba(255,32,32,.35);color:var(--red)}
+
+.btn-red,.dl-btn{background:linear-gradient(135deg,#ff3333,#ff2020);border:none;color:#fff;padding:10px 20px;border-radius:var(--r);cursor:pointer;font-weight:600;transition:var(--transition);display:inline-flex;align-items:center;gap:8px;will-change:box-shadow}
+.btn-red:hover,.dl-btn:hover{box-shadow:0 12px 40px rgba(255,32,32,.4);transform:translateY(-2px)}
+.btn-red:active,.dl-btn:active{transform:translateY(0)}
+
+.dl-btn.success{background:linear-gradient(135deg,#22c55e,#15803d)!important;box-shadow:0 12px 40px rgba(34,197,94,.3)!important}
+.dl-btn:disabled{opacity:.5;cursor:not-allowed}
+
+.url-row{display:flex;gap:8px;align-items:center}
+
+.url-badge{display:none;font-size:12px;color:var(--grn);background:rgba(30,215,96,.1);border:1px solid rgba(30,215,96,.3);padding:8px 12px;border-radius:8px;margin-top:8px;animation:slideIn .3s ease-out}
+.url-badge.show{display:block}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+.now-card{margin-bottom:12px}
+.dl-row{display:flex;gap:8px}
+.dl-btn,.cancel-btn{flex:1;padding:12px 16px;font-size:14px}
+.cancel-btn{background:var(--s3);color:var(--fg2);border:1px solid var(--bdr)}
+.cancel-btn:hover{background:var(--s4);color:var(--fg)}
+
+/* Progress */
+.prog-container{background:var(--s3);border-radius:var(--rpill);height:6px;margin:12px 0;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#ff2020,#ff7070);width:0%;transition:width .3s ease-out;will-change:width;border-radius:var(--rpill)}
+
+.console{background:var(--bg2);border:1px solid var(--bdr2);border-radius:8px;padding:10px;margin-top:8px;font-family:'DM Mono',monospace;font-size:11px;max-height:150px;overflow-y:auto;color:var(--fg2)}
+.console-line{padding:3px 0;display:flex;gap:8px}
+.console-line.ok{color:var(--grn)}
+.console-line.err{color:var(--red)}
+.console-line.dim{color:var(--fg3)}
+
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--bdr);gap:12px}
+.logo{font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px}
+.nav{display:flex;gap:8px}
+.nav-btn{background:transparent;border:1px solid var(--bdr);color:var(--fg2);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;transition:var(--transition);font-weight:500}
+.nav-btn.on{background:var(--red);color:#fff;border-color:var(--red)}
 .nav-btn:hover{background:var(--s3);color:var(--fg)}
-.btn-red:hover{box-shadow:0 8px 34px rgba(255,32,32,.45)}
 
-/* Green success for download button */
-.dl-btn.success{background:linear-gradient(135deg,#1ed760,#0fa34a)!important;color:#fff!important}
+.pages{overflow-y:auto;height:calc(100vh - 52px);padding:0 16px}
+.page{display:none;padding:16px 0}
+.page.on{display:block;animation:fadeIn .3s ease-out}
+@keyframes fadeIn{from{opacity:.7;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-.card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:16px 18px;margin-bottom:12px;transition:border-color .2s}
-.url-inp{flex:1;background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);padding:9px 16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--fg);outline:none;transition:border .18s,box-shadow .18s}
-.url-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft)}
+/* Settings + History */
+.opts-grid{display:grid;gap:12px}
+.opt-item{display:flex;flex-direction:column;gap:6px}
+.opt-label{font-size:12px;font-weight:600;text-transform:uppercase}
+.opt-select{background:var(--s3);border:1px solid var(--bdr2);color:var(--fg);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer;transition:var(--transition)}
+.opt-select:hover{border-color:rgba(255,32,32,.2);background:var(--s4)}
+.opt-select:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft)}
+
+.hist-item{background:var(--card);border:1px solid var(--bdr);padding:12px;border-radius:8px;margin-bottom:8px;transition:var(--transition);cursor:pointer;display:flex;align-items:center;gap:12px}
+.hist-item:hover{border-color:var(--bdr2);background:var(--card2)}
+.hist-thumb{width:48px;height:48px;border-radius:6px;background:var(--s3);flex-shrink:0;object-fit:cover}
+.hist-info{flex:1;min-width:0}
+.hist-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-meta{font-size:11px;color:var(--fg3);margin-top:2px}
+
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s4);border:1px solid var(--bdr2);padding:12px 16px;border-radius:8px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:toastIn .3s ease-out;z-index:9999;max-width:280px}
+.toast.ok{border-left:3px solid var(--grn)}
+.toast.err{border-left:3px solid var(--red)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+
+/* Loading Spinner */
+.spinner{width:16px;height:16px;border:2px solid var(--s4);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Responsive */
+@media(max-width:640px){
+  .hero-title{font-size:18px}
+  .pages{padding:0 12px}
+  .topbar{flex-direction:column;align-items:flex-start}
+  .nav{flex-wrap:wrap}
+}
+
 </style>
 </head>
 <body>
 <div class="blob"></div>
 <div id="app">
 
-<!-- LOGIN + MODALS (unchanged) -->
-<div id="login-screen">
-  <!-- Your original login code stays exactly the same -->
-  ... (all login, modals, etc. unchanged) ...
-</div>
-
 <!-- MAIN APP -->
 <div id="main-app">
-  <!-- Topbar unchanged -->
-  <div class="topbar">...[original topbar]...</div>
+  <div class="topbar">
+    <div class="logo">🚀 IDLR</div>
+    <div style="flex:1"></div>
+    <div class="nav">
+      <button class="nav-btn on" onclick="showPage('dl')">Download</button>
+      <button class="nav-btn" onclick="showPage('hist')">History</button>
+      <button class="nav-btn" onclick="showPage('settings')">Settings</button>
+    </div>
+  </div>
 
   <div class="pages">
+    <!-- DOWNLOAD PAGE -->
     <div class="page on" id="page-dl">
       <div class="dl-hero">
         <div class="hero-title">
@@ -88,89 +172,326 @@ body::before{
       </div>
 
       <div class="card">
-        <div class="clabel">URL — YouTube, Spotify, SoundCloud, TikTok, Instagram…</div>
+        <div class="clabel">URL — Paste any link here</div>
         <div class="url-row">
           <input class="url-inp" id="url-inp" type="text" placeholder="Paste any link here…" onkeydown="if(event.key==='Enter')go()" oninput="detectURL(this.value)"/>
-          <button class="pill" onclick="doPaste()">📋 Paste</button>
-          <button class="pill outline" onclick="document.getElementById('url-inp').value='';detectURL('')">✕</button>
+          <button class="pill" onclick="doPaste()" title="Paste from clipboard">📋</button>
+          <button class="pill outline" onclick="document.getElementById('url-inp').value='';detectURL('')" title="Clear">✕</button>
         </div>
         <div class="url-badge" id="spotify-badge">🎵 Spotify detected — will download as audio</div>
       </div>
 
-      <!-- Options unchanged -->
+      <!-- OPTIONS -->
       <div class="card" id="options-card">
-        <!-- Your original options code -->
-        ...[original dropdowns]...
+        <div class="clabel">Options</div>
+        <div class="opts-grid">
+          <div class="opt-item">
+            <div class="opt-label">Mode</div>
+            <select class="opt-select" id="mode-sel" onchange="pickDD('mode',this.value)">
+              <option>Video</option>
+              <option>Audio</option>
+              <option>Playlist — Video</option>
+              <option>Playlist — Audio</option>
+            </select>
+          </div>
+          <div class="opt-item">
+            <div class="opt-label">Quality</div>
+            <select class="opt-select" id="quality-sel" onchange="pickDD('quality',this.value)">
+              <option>Best (Max Quality)</option>
+              <option>4K</option>
+              <option>1080p</option>
+              <option>720p</option>
+              <option>480p</option>
+              <option>360p</option>
+            </select>
+          </div>
+          <div class="opt-item">
+            <div class="opt-label">Format</div>
+            <select class="opt-select" id="format-sel" onchange="pickDD('format',this.value)">
+              <option>mp4</option>
+              <option>mkv</option>
+              <option>webm</option>
+              <option>mp3</option>
+              <option>m4a</option>
+              <option>opus</option>
+            </select>
+          </div>
+        </div>
       </div>
 
+      <!-- DOWNLOAD SECTION -->
       <div class="card">
-        <div class="now-card" id="now-card">...[original]...</div>
+        <div class="now-card" id="now-card">
+          <div class="clabel">Download Status</div>
+          <div class="stat-txt" id="now-status">Ready to download</div>
+          <div class="prog-container"><div class="prog-fill" id="prog-fill"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg3)">
+            <span id="prog-txt">0%</span>
+            <span id="speed-txt"></span>
+            <span id="eta-txt"></span>
+          </div>
+        </div>
         <div class="dl-row">
           <button class="dl-btn" id="dl-btn" onclick="go()">⬇ Download Now</button>
-          <button class="cancel-btn" onclick="cancelDl()">✕ Cancel</button>
+          <button class="cancel-btn" onclick="cancelDl()" id="cancel-btn">✕ Cancel</button>
         </div>
-        <!-- Progress + console unchanged -->
-        ...[original progress and console]...
+        <div class="console" id="console"></div>
       </div>
     </div>
 
-    <!-- History, Settings, Terms unchanged -->
-    ...[rest of your pages]...
+    <!-- HISTORY PAGE -->
+    <div class="page" id="page-hist">
+      <h2 style="margin:16px 0;font-size:18px">Download History</h2>
+      <div id="hist-container"></div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="page" id="page-settings">
+      <h2 style="margin:16px 0;font-size:18px">Settings</h2>
+      <div class="card">
+        <div class="clabel">System Info</div>
+        <div style="display:grid;gap:8px;font-size:12px">
+          <div><strong>yt-dlp:</strong> <span id="info-ytdlp">-</span></div>
+          <div><strong>FFmpeg:</strong> <span id="info-ffmpeg">-</span></div>
+          <div><strong>Network:</strong> <span id="info-net">-</span></div>
+        </div>
+        <button class="btn-red" onclick="updateYtdlp()" style="margin-top:12px">🔄 Update yt-dlp</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <div id="toasts"></div>
 
+</div>
+
 <script>
-/* Your original script + small improvements */
+/* Global state */
+let _dd = {mode:'Video', quality:'Best (Max Quality)', format:'mp4'};
+let _busy = false;
+let _es = null;
+let _currentJob = null;
+const DPATH = navigator.platform.includes('Win') ? '%USERPROFILE%\\Downloads' : '~/Downloads';
 
-let U=null,_authMode='login',_stars=0,_es=null,_busy=false,_savedPath='';
-let _dd={mode:'Video',quality:'Best (Max Quality)',format:'mp4'};
-const DPATH=navigator.platform.includes('Win')?'%USERPROFILE%\\Downloads':'~/Downloads';
+/* Page Navigation */
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('on'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('on'));
+  document.getElementById('page-' + p).classList.add('on');
+  event.target.classList.add('on');
+  if(p === 'hist') loadHistory();
+  if(p === 'settings') loadInfo();
+}
 
-/* ... all your original functions stay the same ... */
+/* URL Detection */
+function detectURL(url) {
+  const sp = url && (url.includes('spotify.com') || url.startsWith('spotify:'));
+  const badge = document.getElementById('spotify-badge');
+  badge.className = 'url-badge' + (sp ? ' show' : '');
+  if(sp && _dd.format === 'mp4') pickDD('format', 'mp3');
+}
 
-/* Improved URL Detection */
-function detectURL(url){
-  const sp=url&&(url.includes('spotify.com')||url.startsWith('spotify:'));
-  document.getElementById('spotify-badge').className='url-badge'+(sp?' show':'');
-  if(sp && _dd.format==='mp4') pickDD('format','mp3');
+/* Dropdown handler */
+function pickDD(k, v) {
+  _dd[k] = v;
+  document.getElementById(k + '-sel').value = v;
+}
 
-  // YouTube auto options
-  if(url.includes('youtube.com') || url.includes('youtu.be')){
-    if(url.includes('/playlist') || url.includes('list=')){
-      pickDD('mode','Playlist — Video');
-    }
+/* Paste from clipboard */
+async function doPaste() {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('url-inp').value = text;
+    detectURL(text);
+  } catch(e) {
+    toast('Clipboard access denied', 'err');
   }
 }
 
-/* Green button on success */
-async function go(){
-  // Reset button
-  const dlBtn = document.getElementById('dl-btn');
-  dlBtn.classList.remove('success');
-  dlBtn.innerHTML = '⬇ Download Now';
+/* Start download */
+async function go() {
+  const url = document.getElementById('url-inp').value.trim();
+  if(!url) { toast('Please paste a URL', 'err'); return; }
+  if(_busy) { toast('Download in progress', 'err'); return; }
 
-  // ... your original go() code ...
+  _busy = true;
+  document.getElementById('dl-btn').disabled = true;
+  document.getElementById('cancel-btn').disabled = false;
+  document.getElementById('console').innerHTML = '';
+  
+  try {
+    const r = await fetch('/api/download', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        url: url,
+        mode: _dd.mode,
+        quality: _dd.quality,
+        format: _dd.format,
+        path: DPATH,
+        user: 'default'
+      })
+    });
+    
+    if(!r.ok) {
+      const err = await r.json();
+      toast('Error: ' + (err.error || 'Unknown'), 'err');
+      _busy = false;
+      document.getElementById('dl-btn').disabled = false;
+      return;
+    }
+    
+    const data = await r.json();
+    _currentJob = data.job_id;
+    streamProgress(data.job_id);
+  } catch(e) {
+    toast('Network error: ' + e.message, 'err');
+    _busy = false;
+    document.getElementById('dl-btn').disabled = false;
+  }
+}
 
-  if(p.done){
-    _es.close();_es=null;_busy=false;
-    dlBtn.disabled=false;
-    document.getElementById('prog-fill').classList.remove('active');
-    if(p.status==='done'){
-      setProg(100);setStat('✓ Download complete!','green');setSpd('');
-      document.getElementById('now-status').textContent='Saved ✓';
+/* Stream progress */
+function streamProgress(jid) {
+  if(_es) _es.close();
+  _es = new EventSource('/api/progress/' + jid);
+  
+  _es.onmessage = function(e) {
+    const p = JSON.parse(e.data);
+    if(p.error) { _es.close(); _es = null; return; }
+    
+    document.getElementById('prog-txt').textContent = Math.round(p.progress) + '%';
+    document.getElementById('prog-fill').style.width = p.progress + '%';
+    document.getElementById('speed-txt').textContent = p.speed || '';
+    document.getElementById('eta-txt').textContent = p.eta || '';
+    
+    p.logs?.forEach(log => {
+      const el = document.createElement('div');
+      el.className = 'console-line ' + (log.c || '');
+      el.textContent = log.t;
+      document.getElementById('console').appendChild(el);
+      document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
+    });
+    
+    if(p.done) {
+      _es.close();
+      _es = null;
+      _busy = false;
+      document.getElementById('dl-btn').disabled = false;
+      document.getElementById('dl-btn').classList.add('success');
+      document.getElementById('dl-btn').innerHTML = '✅ Done!';
+      document.getElementById('now-status').textContent = 'Saved ✓';
       toast('Download complete! ✓','ok');
-      // Green success
-      dlBtn.classList.add('success');
-      dlBtn.innerHTML = '✅ Done!';
+      setTimeout(() => {
+        document.getElementById('dl-btn').classList.remove('success');
+        document.getElementById('dl-btn').innerHTML = '⬇ Download Now';
+        document.getElementById('console').innerHTML = '';
+        document.getElementById('prog-fill').style.width = '0%';
+        document.getElementById('now-status').textContent = 'Ready to download';
+      }, 2000);
     }
-    // ... rest unchanged
+  };
+  
+  _es.onerror = function() {
+    _es.close();
+    _es = null;
+    _busy = false;
+    document.getElementById('dl-btn').disabled = false;
+    toast('Connection lost', 'err');
+  };
+}
+
+/* Cancel download */
+function cancelDl() {
+  if(_es) {
+    _es.close();
+    _es = null;
+  }
+  _busy = false;
+  document.getElementById('dl-btn').disabled = false;
+  document.getElementById('cancel-btn').disabled = true;
+  document.getElementById('console').innerHTML = '';
+  document.getElementById('prog-fill').style.width = '0%';
+  document.getElementById('now-status').textContent = 'Download cancelled';
+  toast('Download cancelled', 'ok');
+}
+
+/* Load history */
+async function loadHistory() {
+  try {
+    const r = await fetch('/api/history?user=default');
+    const items = await r.json();
+    const c = document.getElementById('hist-container');
+    c.innerHTML = '';
+    
+    items.reverse().forEach(h => {
+      const el = document.createElement('div');
+      el.className = 'hist-item';
+      el.innerHTML = `
+        ${h.thumb ? `<img class="hist-thumb" src="${h.thumb}" onerror="this.style.display='none'">` : '<div class="hist-thumb"></div>'}
+        <div class="hist-info">
+          <div class="hist-title">${h.title || h.url}</div>
+          <div class="hist-meta">${h.mode} • ${h.quality} • ${h.format}</div>
+          <div class="hist-meta">${h.date} • ${h.status}</div>
+        </div>
+      `;
+      c.appendChild(el);
+    });
+    
+    if(items.length === 0) c.innerHTML = '<div style="color:var(--fg3);font-size:13px">No downloads yet</div>';
+  } catch(e) {
+    document.getElementById('hist-container').innerHTML = '<div style="color:var(--red);font-size:13px">Error loading history</div>';
   }
 }
 
-/* Rest of your original script (copy-paste everything below this) */
-...[keep all your original JavaScript exactly as it was]...
+/* Load system info */
+async function loadInfo() {
+  try {
+    const r = await fetch('/api/info');
+    const info = await r.json();
+    document.getElementById('info-ytdlp').textContent = info.ytdlp || 'Unknown';
+    document.getElementById('info-ffmpeg').textContent = info.ffmpeg ? '✓ Present' : '✗ Missing';
+    document.getElementById('info-net').textContent = info.network || 'Unknown';
+  } catch(e) {
+    document.getElementById('info-ytdlp').textContent = 'Error';
+  }
+}
+
+/* Update yt-dlp */
+async function updateYtdlp() {
+  try {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Updating...';
+    
+    const r = await fetch('/api/update-ytdlp', { method: 'POST' });
+    const data = await r.json();
+    
+    toast(data.msg || 'Updated!', data.ok ? 'ok' : 'err');
+    btn.disabled = false;
+    btn.innerHTML = '🔄 Update yt-dlp';
+    if(data.ok) loadInfo();
+  } catch(e) {
+    toast('Update failed: ' + e.message, 'err');
+    event.target.disabled = false;
+    event.target.innerHTML = '🔄 Update yt-dlp';
+  }
+}
+
+/* Toast notifications */
+function toast(msg, type = 'ok') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => {
+    el.style.animation = 'toastOut .3s ease-out forwards';
+    setTimeout(() => el.remove(), 300);
+  }, 2500);
+}
+
+/* Init */
+loadInfo();
 </script>
 </body>
 </html>
