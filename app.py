@@ -30,7 +30,9 @@ FFMPEG = shutil.which("ffmpeg") or ""
 APP_DIR   = os.path.join(os.path.expanduser("~"), ".idlr_app")
 ACCS_FILE = os.path.join(APP_DIR, "accounts.json")
 HIST_FILE = os.path.join(APP_DIR, "history.json")
+DOWNLOADS_DIR = os.path.join(os.path.expanduser("~"), "Downloads")
 os.makedirs(APP_DIR, exist_ok=True)
+os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 def jload(p, d):
     try:
@@ -161,7 +163,7 @@ def remove_history_item():
 def _spotify_run(job, url, savepath, user, fmt):
     """Download Spotify track/album/playlist using spotdl"""
     os.makedirs(savepath, exist_ok=True)
-    job["log"].append({"t":"🎵 Detected Spotify link — using spotdl…","c":"dim"})
+    job["log"].append({"t":"🎵 Detected Spotify — downloading audio…","c":"dim"})
     job["status"]="downloading"
 
     title = url
@@ -179,42 +181,50 @@ def _spotify_run(job, url, savepath, user, fmt):
                 thumb = songs[0].cover_url or ""
                 job["title"] = title
                 job["thumb"] = thumb
-                job["log"].append({"t": title, "c":"dim"})
-        except Exception: pass
-    except Exception: pass
+                job["log"].append({"t": f"📝 {title}", "c":"dim"})
+        except Exception as e: 
+            job["log"].append({"t": f"⚠ Could not fetch metadata: {str(e)[:50]}", "c":"dim"})
+    except Exception as e: 
+        job["log"].append({"t": f"⚠ Metadata error: {str(e)[:50]}", "c":"dim"})
 
     audio_fmt = fmt if fmt in ("mp3","m4a","opus","ogg","flac") else "mp3"
 
     try:
+        job["log"].append({"t": f"⏳ Downloading as {audio_fmt.upper()}…", "c":"dim"})
         result = subprocess.run(
             [sys.executable, "-m", "spotdl",
              "--output", savepath,
              "--format", audio_fmt,
              "--bitrate", "320k",
              url],
-            capture_output=True, text=True, timeout=600
+            capture_output=True, text=True, timeout=900
         )
         out = (result.stdout or "") + (result.stderr or "")
         
         for line in out.split("\n"):
-            if "Downloaded" in line or "Skipping" in line:
-                job["log"].append({"t": line.strip(), "c":"ok"})
+            line = line.strip()
+            if not line: continue
+            if "Downloaded" in line or "Skipping" in line or "Found" in line:
+                job["log"].append({"t": line, "c":"ok"})
             elif "Error" in line or "Failed" in line:
-                job["log"].append({"t": line.strip(), "c":"err"})
+                job["log"].append({"t": line, "c":"err"})
+            else:
+                job["log"].append({"t": line, "c":"dim"})
 
-        if result.returncode == 0 or "Downloaded" in out:
+        if result.returncode == 0 or "Downloaded" in out or "Skipping" in out:
             job.update({"status":"done","progress":100,"done":True})
-            job["log"].append({"t":"✓ Spotify download complete!","c":"ok"})
+            job["log"].append({"t":"✓ Download complete!","c":"ok"})
             _save_hist(user, url, title, thumb, "Spotify", "Audio", audio_fmt, "done")
         else:
-            raise Exception(out[-300:] if out else "spotdl failed")
+            raise Exception(f"spotdl failed with code {result.returncode}")
     except subprocess.TimeoutExpired:
-        raise Exception("Download timed out after 10 minutes")
+        raise Exception("Download timeout (15 min limit)")
     except Exception as e:
         raise e
 
 # ── Generic yt-dlp download ───────────────────────────────────────────────────
 def _ytdlp_run(job, url, mode, quality, fmt, savepath, user):
+    """Download using yt-dlp with improved error handling"""
     q_map={
         "Best (Max Quality)":"bestvideo+bestaudio/best",
         "4K":"bestvideo[height<=2160]+bestaudio/best",
@@ -223,16 +233,27 @@ def _ytdlp_run(job, url, mode, quality, fmt, savepath, user):
         "480p":"bestvideo[height<=480]+bestaudio/best",
         "360p":"bestvideo[height<=360]+bestaudio/best",
     }
-    os.makedirs(savepath, exist_ok=True)
+    
+    try:
+        os.makedirs(savepath, exist_ok=True)
+    except Exception as e:
+        raise Exception(f"Cannot create directory: {str(e)}")
+    
     opts={
         "outtmpl":os.path.join(savepath,"%(title)s.%(ext)s"),
         "noplaylist":"Playlist" not in mode,
-        "quiet":True,"no_warnings":True,"ignoreerrors":True,
+        "quiet":False,
+        "no_warnings":False,
+        "ignoreerrors":False,
         "progress_hooks":[lambda d:_hook(job,d)],
         "socket_timeout":30,
         "connection_timeout":30,
+        "extractor_args":{"youtube":{"player_client":["web"]}},
     }
-    if FFMPEG: opts["ffmpeg_location"]=os.path.dirname(FFMPEG)
+    
+    if FFMPEG: 
+        opts["ffmpeg_location"]=os.path.dirname(FFMPEG)
+    
     if "Audio" in mode or fmt in ("mp3","m4a"):
         ext=fmt if fmt in("mp3","m4a") else "mp3"
         opts["format"]="bestaudio/best"
@@ -244,23 +265,33 @@ def _ytdlp_run(job, url, mode, quality, fmt, savepath, user):
 
     title=url; thumb=""
     try:
-        with yt_dlp.YoutubeDL({"quiet":True,"no_warnings":True}) as y:
+        job["log"].append({"t": f"📝 Fetching info…", "c":"dim"})
+        with yt_dlp.YoutubeDL({"quiet":False,"no_warnings":False}) as y:
             try:
                 info=y.extract_info(url,download=False)
                 title=info.get("title",url)[:80]
                 thumb=info.get("thumbnail","")
                 job["title"]=title; job["thumb"]=thumb
-                job["log"].append({"t":title,"c":"dim"})
-            except: pass
+                job["log"].append({"t":f"✓ {title}","c":"dim"})
+            except Exception as e:
+                job["log"].append({"t": f"⚠ Could not fetch metadata: {str(e)[:60]}", "c":"dim"})
+                title = "Download"
+        
         job["status"]="downloading"
+        job["log"].append({"t": f"⏳ Downloading ({quality})…", "c":"dim"})
+        
         with yt_dlp.YoutubeDL(opts) as y:
             y.download([url])
+        
         job.update({"status":"done","progress":100,"done":True})
         job["log"].append({"t":"✓ Download complete!","c":"ok"})
+        job["log"].append({"t":f"💾 Saved to {savepath}","c":"ok"})
         _save_hist(user, url, title, thumb, mode, quality, fmt, "done")
     except Exception as e:
-        job.update({"status":"error","error":str(e),"done":True})
-        job["log"].append({"t":f"✗ {str(e)[:200]}","c":"err"})
+        err_msg = str(e)[:150]
+        job.update({"status":"error","error":err_msg,"done":True})
+        job["log"].append({"t":f"✗ Error: {err_msg}","c":"err"})
+        job["log"].append({"t":"💡 Try: different quality, update yt-dlp, or check URL","c":"dim"})
         _save_hist(user, url, title, thumb, mode, quality, fmt, "error")
 
 def _save_hist(user, url, title, thumb, mode, quality, fmt, status):
@@ -278,9 +309,12 @@ def start_download():
     d=request.json or {}
     url=d.get("url","").strip(); mode=d.get("mode","Video")
     quality=d.get("quality","Best (Max Quality)"); fmt=d.get("format","mp4")
-    savepath=d.get("path","").strip() or os.path.join(os.path.expanduser("~"),"Downloads")
+    savepath=d.get("path","").strip() or DOWNLOADS_DIR
     user=d.get("user","")
-    if not url: return jsonify(error="No URL"),400
+    
+    if not url: return jsonify(error="No URL provided"),400
+    if not url.startswith(("http://","https://","spotify:")): 
+        return jsonify(error="Invalid URL format"),400
 
     jid=str(uuid.uuid4())[:8]
     with _jobs_lock:
@@ -290,14 +324,16 @@ def start_download():
     def run():
         job=_jobs[jid]
         try:
+            job["log"].append({"t": f"🚀 Starting download…", "c":"dim"})
             if is_spotify(url):
                 _spotify_run(job, url, savepath, user, fmt)
             else:
                 _ytdlp_run(job, url, mode, quality, fmt, savepath, user)
         except Exception as e:
             with _jobs_lock:
-                job.update({"status":"error","error":str(e),"done":True})
-                job["log"].append({"t":f"✗ {str(e)[:200]}","c":"err"})
+                err_msg = str(e)[:150]
+                job.update({"status":"error","error":err_msg,"done":True})
+                job["log"].append({"t":f"✗ {err_msg}","c":"err"})
 
     threading.Thread(target=run, daemon=True).start()
     return jsonify(job_id=jid)
@@ -311,8 +347,8 @@ def _hook(job, d):
                         "eta":d.get("_eta_str","").strip()})
     elif d["status"]=="finished":
         with _jobs_lock:
-            job["status"]="merging"
-            job["log"].append({"t":"Merging…","c":"dim"})
+            job["status"]="post-processing"
+            job["log"].append({"t":"🔄 Post-processing…","c":"dim"})
 
 @app.route("/api/progress/<jid>")
 def progress(jid):
@@ -342,11 +378,11 @@ def info():
 def update_ytdlp():
     try:
         subprocess.check_output([sys.executable,"-m","pip","install","--upgrade","yt-dlp","spotdl"],
-                                 stderr=subprocess.STDOUT)
+                                 stderr=subprocess.STDOUT, timeout=300)
         import importlib; importlib.reload(yt_dlp)
         return jsonify(ok=True,msg=f"Updated! yt-dlp v{yt_dlp.version.__version__}")
     except Exception as e:
-        return jsonify(ok=False,msg=str(e))
+        return jsonify(ok=False,msg=str(e)[:100])
 
 if __name__=="__main__":
     ip=local_ip()
