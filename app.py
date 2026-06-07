@@ -4,12 +4,17 @@ IDLR — Internet Downloader
 YouTube · Spotify · SoundCloud · Twitter · Instagram · TikTok and more
 Fast · Private · Unlimited
 """
-import subprocess, sys, os
+import subprocess, sys, os, logging
+
+# Suppress verbose logging
+logging.getLogger('flask').setLevel(logging.WARNING)
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
 def pip(pkg):
     subprocess.check_call([sys.executable,"-m","pip","install",pkg,"-q"],
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+# Install dependencies silently
 for p,i in [("flask","flask"),("yt-dlp","yt_dlp"),("static-ffmpeg","static_ffmpeg"),("spotdl","spotdl")]:
     try: __import__(i)
     except: print(f"  Installing {p}..."); pip(p)
@@ -21,7 +26,7 @@ import threading, uuid, re, time, socket, webbrowser
 static_ffmpeg.add_paths()
 FFMPEG = shutil.which("ffmpeg") or ""
 
-# ── Storage ───────────────────────────────────────────────────────────────────
+# ── Storage ───────────────────────────────────────────────────────────
 APP_DIR   = os.path.join(os.path.expanduser("~"), ".idlr_app")
 ACCS_FILE = os.path.join(APP_DIR, "accounts.json")
 HIST_FILE = os.path.join(APP_DIR, "history.json")
@@ -49,15 +54,16 @@ def is_spotify(url):
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=SCRIPT_DIR, template_folder=SCRIPT_DIR)
 _jobs = {}
+_jobs_lock = threading.Lock()
 
-# ── Static ────────────────────────────────────────────────────────────────────
+# ── Static ────────────────────────────────────────────────────────────
 @app.route("/")
 def index(): return send_from_directory(SCRIPT_DIR, "index.html")
 
 @app.route("/favicon.svg")
 def favicon(): return send_from_directory(SCRIPT_DIR, "favicon.svg")
 
-# ── Auth ──────────────────────────────────────────────────────────────────────
+# ── Auth ────────────────────────────────────────────────────────────
 def _user_resp(email, u):
     return jsonify(ok=True, name=u["name"], email=email,
                    username=u.get("username",""),
@@ -104,7 +110,7 @@ def google_login():
         jsave(ACCS_FILE,accs)
     return _user_resp(email, accs[email])
 
-# ── Profile update ────────────────────────────────────────────────────────────
+# ── Profile update ─────────────────────────────────────────────────────────
 @app.route("/api/profile", methods=["POST"])
 def update_profile():
     d=request.json or {}
@@ -115,11 +121,11 @@ def update_profile():
     if "name"     in d and d["name"].strip():     u["name"]     = d["name"].strip()[:40]
     if "username" in d:                            u["username"] = d["username"].strip()[:24]
     if "bio"      in d:                            u["bio"]      = d["bio"].strip()[:160]
-    if "avatar"   in d:                            u["avatar"]   = d["avatar"]  # base64 data-url
+    if "avatar"   in d:                            u["avatar"]   = d["avatar"]
     jsave(ACCS_FILE,accs)
     return _user_resp(email, u)
 
-# ── Prefs ─────────────────────────────────────────────────────────────────────
+# ── Prefs ────────────────────────────────────────────────────────────
 @app.route("/api/prefs", methods=["POST"])
 def save_prefs():
     d=request.json or {}
@@ -129,7 +135,7 @@ def save_prefs():
     accs[email]["prefs"]=prefs; jsave(ACCS_FILE,accs)
     return jsonify(ok=True)
 
-# ── History ───────────────────────────────────────────────────────────────────
+# ── History ───────────────────────────────────────────────────────────
 @app.route("/api/history")
 def get_history():
     email=request.args.get("user","")
@@ -153,18 +159,16 @@ def remove_history_item():
 
 # ── Spotify download via spotdl ───────────────────────────────────────────────
 def _spotify_run(job, url, savepath, user, fmt):
-    """Download Spotify track/album/playlist using spotdl (finds on YouTube, no DRM)"""
+    """Download Spotify track/album/playlist using spotdl"""
     os.makedirs(savepath, exist_ok=True)
-    job["log"].append({"t":"Detected Spotify link — using spotdl…","c":"dim"})
+    job["log"].append({"t":"🎵 Detected Spotify link — using spotdl…","c":"dim"})
     job["status"]="downloading"
 
     title = url
     thumb = ""
 
-    # Try to get metadata first via spotdl
+    # Get metadata
     try:
-        import spotdl
-        from spotdl import Spotdl
         from spotdl.types.song import Song
         try:
             songs = Song.from_url(url)
@@ -191,7 +195,7 @@ def _spotify_run(job, url, savepath, user, fmt):
             capture_output=True, text=True, timeout=600
         )
         out = (result.stdout or "") + (result.stderr or "")
-        # Parse spotdl output for title
+        
         for line in out.split("\n"):
             if "Downloaded" in line or "Skipping" in line:
                 job["log"].append({"t": line.strip(), "c":"ok"})
@@ -200,12 +204,14 @@ def _spotify_run(job, url, savepath, user, fmt):
 
         if result.returncode == 0 or "Downloaded" in out:
             job.update({"status":"done","progress":100,"done":True})
-            job["log"].append({"t":f"✓ Spotify download saved to {savepath}","c":"ok"})
+            job["log"].append({"t":"✓ Spotify download complete!","c":"ok"})
             _save_hist(user, url, title, thumb, "Spotify", "Audio", audio_fmt, "done")
         else:
             raise Exception(out[-300:] if out else "spotdl failed")
     except subprocess.TimeoutExpired:
         raise Exception("Download timed out after 10 minutes")
+    except Exception as e:
+        raise e
 
 # ── Generic yt-dlp download ───────────────────────────────────────────────────
 def _ytdlp_run(job, url, mode, quality, fmt, savepath, user):
@@ -223,6 +229,8 @@ def _ytdlp_run(job, url, mode, quality, fmt, savepath, user):
         "noplaylist":"Playlist" not in mode,
         "quiet":True,"no_warnings":True,"ignoreerrors":True,
         "progress_hooks":[lambda d:_hook(job,d)],
+        "socket_timeout":30,
+        "connection_timeout":30,
     }
     if FFMPEG: opts["ffmpeg_location"]=os.path.dirname(FFMPEG)
     if "Audio" in mode or fmt in ("mp3","m4a"):
@@ -248,11 +256,11 @@ def _ytdlp_run(job, url, mode, quality, fmt, savepath, user):
         with yt_dlp.YoutubeDL(opts) as y:
             y.download([url])
         job.update({"status":"done","progress":100,"done":True})
-        job["log"].append({"t":f"✓ Saved to {savepath}","c":"ok"})
+        job["log"].append({"t":"✓ Download complete!","c":"ok"})
         _save_hist(user, url, title, thumb, mode, quality, fmt, "done")
     except Exception as e:
         job.update({"status":"error","error":str(e),"done":True})
-        job["log"].append({"t":f"✗ {e}","c":"err"})
+        job["log"].append({"t":f"✗ {str(e)[:200]}","c":"err"})
         _save_hist(user, url, title, thumb, mode, quality, fmt, "error")
 
 def _save_hist(user, url, title, thumb, mode, quality, fmt, status):
@@ -264,7 +272,7 @@ def _save_hist(user, url, title, thumb, mode, quality, fmt, status):
     hist.append(entry)
     jsave(HIST_FILE,hist)
 
-# ── Download endpoint ─────────────────────────────────────────────────────────
+# ── Download endpoint ────────────────────────────────────────────────────────
 @app.route("/api/download", methods=["POST"])
 def start_download():
     d=request.json or {}
@@ -275,8 +283,9 @@ def start_download():
     if not url: return jsonify(error="No URL"),400
 
     jid=str(uuid.uuid4())[:8]
-    _jobs[jid]={"status":"starting","progress":0,"speed":"","eta":"",
-                "log":[],"title":"","thumb":"","error":None,"done":False}
+    with _jobs_lock:
+        _jobs[jid]={"status":"starting","progress":0,"speed":"","eta":"",
+                    "log":[],"title":"","thumb":"","error":None,"done":False}
 
     def run():
         job=_jobs[jid]
@@ -286,8 +295,9 @@ def start_download():
             else:
                 _ytdlp_run(job, url, mode, quality, fmt, savepath, user)
         except Exception as e:
-            job.update({"status":"error","error":str(e),"done":True})
-            job["log"].append({"t":f"✗ {e}","c":"err"})
+            with _jobs_lock:
+                job.update({"status":"error","error":str(e),"done":True})
+                job["log"].append({"t":f"✗ {str(e)[:200]}","c":"err"})
 
     threading.Thread(target=run, daemon=True).start()
     return jsonify(job_id=jid)
@@ -296,22 +306,28 @@ def _hook(job, d):
     if d["status"]=="downloading":
         raw=d.get("_percent_str","0%").strip()
         pct=float(re.sub(r"[^\d.]","",raw) or 0)
-        job.update({"progress":pct,"speed":d.get("_speed_str","").strip(),
-                    "eta":d.get("_eta_str","").strip()})
+        with _jobs_lock:
+            job.update({"progress":pct,"speed":d.get("_speed_str","").strip(),
+                        "eta":d.get("_eta_str","").strip()})
     elif d["status"]=="finished":
-        job["status"]="merging"
-        job["log"].append({"t":"Merging…","c":"dim"})
+        with _jobs_lock:
+            job["status"]="merging"
+            job["log"].append({"t":"Merging…","c":"dim"})
 
 @app.route("/api/progress/<jid>")
 def progress(jid):
     def stream():
         ll=0
         while True:
-            job=_jobs.get(jid)
+            with _jobs_lock:
+                job=_jobs.get(jid)
             if not job: yield f"data:{json.dumps({'error':'not found'})}\n\n"; break
-            new=job["log"][ll:]; ll=len(job["log"])
-            yield f"data:{json.dumps({'status':job['status'],'progress':job['progress'],'speed':job['speed'],'eta':job['eta'],'title':job['title'],'thumb':job.get('thumb',''),'logs':new,'done':job['done'],'error':job['error']})}\n\n"
-            if job["done"]: break
+            with _jobs_lock:
+                new=job["log"][ll:]; ll=len(job["log"])
+                status=job["status"]; progress_val=job["progress"]; speed=job["speed"]
+                eta=job["eta"]; title=job["title"]; thumb=job.get("thumb",""); done=job["done"]
+            yield f"data:{json.dumps({'status':status,'progress':progress_val,'speed':speed,'eta':eta,'title':title,'thumb':thumb,'logs':new,'done':done})}\n\n"
+            if done: break
             time.sleep(0.3)
     return Response(stream(),mimetype="text/event-stream",
                     headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
