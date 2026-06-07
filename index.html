@@ -48,14 +48,13 @@ body::before{
 .hero-chip{background:var(--s3);border:1px solid var(--bdr);padding:6px 12px;border-radius:var(--rpill);font-size:12px;color:var(--fg2);transition:var(--transition);cursor:default}
 .hero-chip:hover{background:var(--s4);color:var(--fg);border-color:rgba(255,32,32,.2)}
 
-/* Better grey text */
 .clabel,.opt-label,.now-status,.hi-meta,.sys-key,.footer-link,.hero-sub,.path-text{color:var(--fg3)}
 .stat-txt,.pop-handle{color:var(--fg2)}
 
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:16px 18px;margin-bottom:12px;transition:var(--transition)}
 .card:hover{border-color:var(--bdr2);box-shadow:0 8px 24px rgba(0,0,0,.3)}
 
-.url-inp{flex:1;background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);padding:10px 16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--fg);outline:none;transition:var(--transition);will-change:border-color}
+.url-inp{flex:1;background:var(--s3);border:1px solid var(--bdr2);border-radius:var(--rpill);padding:10px 16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--fg);outline:none;transition:var(--transition)}
 .url-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft);background:var(--s4)}
 
 .pill{background:var(--s3);border:1px solid var(--bdr2);color:var(--fg);padding:8px 14px;border-radius:var(--rpill);cursor:pointer;font-size:13px;font-weight:500;transition:var(--transition);display:inline-flex;align-items:center;gap:6px}
@@ -63,7 +62,7 @@ body::before{
 .pill.outline{background:transparent;border-color:var(--bdr)}
 .pill.outline:hover{border-color:rgba(255,32,32,.35);color:var(--red)}
 
-.btn-red,.dl-btn{background:linear-gradient(135deg,#ff3333,#ff2020);border:none;color:#fff;padding:10px 20px;border-radius:var(--r);cursor:pointer;font-weight:600;transition:var(--transition);display:inline-flex;align-items:center;gap:8px;will-change:box-shadow}
+.btn-red,.dl-btn{background:linear-gradient(135deg,#ff3333,#ff2020);border:none;color:#fff;padding:10px 20px;border-radius:var(--r);cursor:pointer;font-weight:600;transition:var(--transition);display:inline-flex;align-items:center;gap:8px;will-change:box-shadow;width:100%}
 .btn-red:hover,.dl-btn:hover{box-shadow:0 12px 40px rgba(255,32,32,.4);transform:translateY(-2px)}
 .btn-red:active,.dl-btn:active{transform:translateY(0)}
 
@@ -78,11 +77,9 @@ body::before{
 
 .now-card{margin-bottom:12px}
 .dl-row{display:flex;gap:8px}
-.dl-btn,.cancel-btn{flex:1;padding:12px 16px;font-size:14px}
-.cancel-btn{background:var(--s3);color:var(--fg2);border:1px solid var(--bdr)}
+.cancel-btn{background:var(--s3);color:var(--fg2);border:1px solid var(--bdr);padding:12px 16px;font-size:14px;cursor:pointer;transition:var(--transition);flex:1}
 .cancel-btn:hover{background:var(--s4);color:var(--fg)}
 
-/* Progress */
 .prog-container{background:var(--s3);border-radius:var(--rpill);height:6px;margin:12px 0;overflow:hidden}
 .prog-fill{height:100%;background:linear-gradient(90deg,#ff2020,#ff7070);width:0%;transition:width .3s ease-out;will-change:width;border-radius:var(--rpill)}
 
@@ -92,48 +89,82 @@ body::before{
 .console-line.err{color:var(--red)}
 .console-line.dim{color:var(--fg3)}
 
+/* TOPBAR & PROFILE */
 .topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--bdr);gap:12px}
 .logo{font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px}
-.nav{display:flex;gap:8px}
+
+.profile-btn{background:transparent;border:none;cursor:pointer;padding:8px;border-radius:8px;display:flex;align-items:center;gap:8px;transition:var(--transition);color:var(--fg)}
+.profile-btn:hover{background:var(--s3)}
+
+.avatar-circle{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--purple));display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid var(--bdr);flex-shrink:0}
+.avatar-circle img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+
+.profile-name{font-size:13px;font-weight:600;color:var(--fg);text-align:left}
+
+.nav{display:flex;gap:8px;flex:1;justify-content:center}
 .nav-btn{background:transparent;border:1px solid var(--bdr);color:var(--fg2);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;transition:var(--transition);font-weight:500}
 .nav-btn.on{background:var(--red);color:#fff;border-color:var(--red)}
 .nav-btn:hover{background:var(--s3);color:var(--fg)}
 
-.pages{overflow-y:auto;height:calc(100vh - 52px);padding:0 16px}
-.page{display:none;padding:16px 0}
-.page.on{display:block;animation:fadeIn .3s ease-out}
-@keyframes fadeIn{from{opacity:.7;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* PAGES WITH ANIMATION */
+.pages{overflow-y:auto;height:calc(100vh - 52px);padding:0 16px;position:relative}
+.page{display:none;padding:16px 0;position:absolute;width:calc(100% - 32px);animation:slideIn .3s ease-out}
+.page.on{display:block;position:relative}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
 
-/* Settings + History */
-.opts-grid{display:grid;gap:12px}
-.opt-item{display:flex;flex-direction:column;gap:6px}
-.opt-label{font-size:12px;font-weight:600;text-transform:uppercase}
-.opt-select{background:var(--s3);border:1px solid var(--bdr2);color:var(--fg);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer;transition:var(--transition)}
-.opt-select:hover{border-color:rgba(255,32,32,.2);background:var(--s4)}
-.opt-select:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft)}
+/* MODAL - PROFILE SETTINGS */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;backdrop-filter:blur(4px);animation:fadeIn .2s ease-out}
+.modal.show{display:flex;align-items:center;justify-content:center}
+.modal-content{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:24px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto;animation:slideUp .3s ease-out}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
 
-.hist-item{background:var(--card);border:1px solid var(--bdr);padding:12px;border-radius:8px;margin-bottom:8px;transition:var(--transition);cursor:pointer;display:flex;align-items:center;gap:12px}
-.hist-item:hover{border-color:var(--bdr2);background:var(--card2)}
-.hist-thumb{width:48px;height:48px;border-radius:6px;background:var(--s3);flex-shrink:0;object-fit:cover}
-.hist-info{flex:1;min-width:0}
-.hist-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hist-meta{font-size:11px;color:var(--fg3);margin-top:2px}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-header h2{font-size:18px;font-weight:700}
+.modal-close{background:transparent;border:none;cursor:pointer;font-size:20px;color:var(--fg);transition:var(--transition)}
+.modal-close:hover{color:var(--red)}
+
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.form-group label{font-size:12px;font-weight:600;color:var(--fg3);text-transform:uppercase}
+.form-group input,.form-group textarea{background:var(--s3);border:1px solid var(--bdr2);color:var(--fg);padding:8px 12px;border-radius:8px;font-family:inherit;outline:none;transition:var(--transition)}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--redsoft)}
+
+.avatar-upload{display:flex;align-items:center;gap:12px}
+.avatar-preview{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--purple));display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid var(--bdr)}
+.avatar-preview img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.avatar-upload input[type="file"]{display:none}
+.avatar-upload-btn{background:var(--s3);border:1px solid var(--bdr2);color:var(--fg2);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12px;transition:var(--transition)}
+.avatar-upload-btn:hover{background:var(--s4);color:var(--fg)}
+
+.modal-buttons{display:flex;gap:8px;margin-top:16px}
+.btn-save,.btn-cancel{flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;font-weight:600;transition:var(--transition)}
+.btn-save{background:var(--red);color:#fff}
+.btn-save:hover{box-shadow:0 8px 24px rgba(255,32,32,.4)}
+.btn-cancel{background:var(--s3);color:var(--fg2);border:1px solid var(--bdr)}
+.btn-cancel:hover{background:var(--s4);color:var(--fg)}
+
+/* SETTINGS PAGE */
+.settings-grid{display:grid;gap:16px}
+.setting-card{background:var(--card2);border:1px solid var(--bdr);padding:16px;border-radius:var(--r)}
+.setting-card h3{font-size:14px;font-weight:700;margin-bottom:12px}
+.setting-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px}
+.setting-label{color:var(--fg3)}
+.setting-value{color:var(--fg);font-weight:600}
 
 .toast{position:fixed;bottom:20px;right:20px;background:var(--s4);border:1px solid var(--bdr2);padding:12px 16px;border-radius:8px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:toastIn .3s ease-out;z-index:9999;max-width:280px}
 .toast.ok{border-left:3px solid var(--grn)}
 .toast.err{border-left:3px solid var(--red)}
 @keyframes toastIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
 
-/* Loading Spinner */
 .spinner{width:16px;height:16px;border:2px solid var(--s4);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* Responsive */
 @media(max-width:640px){
   .hero-title{font-size:18px}
   .pages{padding:0 12px}
-  .topbar{flex-direction:column;align-items:flex-start}
-  .nav{flex-wrap:wrap}
+  .topbar{flex-wrap:wrap}
+  .nav{width:100%;justify-content:space-between}
+  .modal-content{width:95%}
 }
 
 </style>
@@ -142,16 +173,18 @@ body::before{
 <div class="blob"></div>
 <div id="app">
 
-<!-- MAIN APP -->
 <div id="main-app">
   <div class="topbar">
     <div class="logo">🚀 IDLR</div>
-    <div style="flex:1"></div>
     <div class="nav">
-      <button class="nav-btn on" onclick="showPage('dl')">Download</button>
-      <button class="nav-btn" onclick="showPage('hist')">History</button>
-      <button class="nav-btn" onclick="showPage('settings')">Settings</button>
+      <button class="nav-btn on" onclick="showPage('dl')">⬇ Download</button>
+      <button class="nav-btn" onclick="showPage('hist')">📜 History</button>
+      <button class="nav-btn" onclick="showPage('settings')">⚙️ Settings</button>
     </div>
+    <button class="profile-btn" onclick="openProfileModal()">
+      <div class="avatar-circle" id="topbar-avatar">👤</div>
+      <span class="profile-name" id="topbar-name">Account</span>
+    </button>
   </div>
 
   <div class="pages">
@@ -175,13 +208,13 @@ body::before{
         <div class="clabel">URL — Paste any link here</div>
         <div class="url-row">
           <input class="url-inp" id="url-inp" type="text" placeholder="Paste any link here…" onkeydown="if(event.key==='Enter')go()" oninput="detectURL(this.value)"/>
-          <button class="pill" onclick="doPaste()" title="Paste from clipboard">📋</button>
-          <button class="pill outline" onclick="document.getElementById('url-inp').value='';detectURL('')" title="Clear">✕</button>
+          <button class="pill" onclick="doPaste()" title="Paste">📋</button>
+          <button class="pill outline" onclick="clearInput()" title="Clear">✕</button>
         </div>
-        <div class="url-badge" id="spotify-badge">🎵 Spotify detected — will download as audio</div>
+        <div class="url-badge" id="detect-badge">🎵 Music detected</div>
+        <div class="url-badge" id="volume-badge">🔊 High quality audio (320kbps)</div>
       </div>
 
-      <!-- OPTIONS -->
       <div class="card" id="options-card">
         <div class="clabel">Options</div>
         <div class="opts-grid">
@@ -219,13 +252,12 @@ body::before{
         </div>
       </div>
 
-      <!-- DOWNLOAD SECTION -->
       <div class="card">
         <div class="now-card" id="now-card">
           <div class="clabel">Download Status</div>
           <div class="stat-txt" id="now-status">Ready to download</div>
           <div class="prog-container"><div class="prog-fill" id="prog-fill"></div></div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg3)">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg3);margin-top:8px">
             <span id="prog-txt">0%</span>
             <span id="speed-txt"></span>
             <span id="eta-txt"></span>
@@ -233,30 +265,133 @@ body::before{
         </div>
         <div class="dl-row">
           <button class="dl-btn" id="dl-btn" onclick="go()">⬇ Download Now</button>
-          <button class="cancel-btn" onclick="cancelDl()" id="cancel-btn">✕ Cancel</button>
         </div>
+        <button class="cancel-btn" onclick="cancelDl()" id="cancel-btn" style="margin-top:8px;display:none">✕ Cancel</button>
         <div class="console" id="console"></div>
       </div>
     </div>
 
     <!-- HISTORY PAGE -->
     <div class="page" id="page-hist">
-      <h2 style="margin:16px 0;font-size:18px">Download History</h2>
+      <h2 style="margin:16px 0;font-size:18px">📜 Download History</h2>
       <div id="hist-container"></div>
     </div>
 
     <!-- SETTINGS PAGE -->
     <div class="page" id="page-settings">
-      <h2 style="margin:16px 0;font-size:18px">Settings</h2>
-      <div class="card">
-        <div class="clabel">System Info</div>
-        <div style="display:grid;gap:8px;font-size:12px">
-          <div><strong>yt-dlp:</strong> <span id="info-ytdlp">-</span></div>
-          <div><strong>FFmpeg:</strong> <span id="info-ffmpeg">-</span></div>
-          <div><strong>Network:</strong> <span id="info-net">-</span></div>
+      <h2 style="margin:16px 0;font-size:18px">⚙️ Settings</h2>
+      <div class="settings-grid">
+        <div class="setting-card">
+          <h3>📊 System Information</h3>
+          <div class="setting-row">
+            <span class="setting-label">yt-dlp Version</span>
+            <span class="setting-value" id="info-ytdlp">-</span>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">FFmpeg</span>
+            <span class="setting-value" id="info-ffmpeg">-</span>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Network</span>
+            <span class="setting-value" id="info-net">-</span>
+          </div>
+          <button class="btn-red" onclick="updateYtdlp()" style="margin-top:12px;width:100%">🔄 Update yt-dlp</button>
         </div>
-        <button class="btn-red" onclick="updateYtdlp()" style="margin-top:12px">🔄 Update yt-dlp</button>
+
+        <div class="setting-card">
+          <h3>🎵 Audio Quality</h3>
+          <div class="setting-row">
+            <span class="setting-label">Default Bitrate</span>
+            <span class="setting-value">320kbps</span>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Supported Formats</span>
+            <span class="setting-value">MP3, M4A, OPUS, FLAC</span>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <h3>🎬 Video Quality</h3>
+          <div class="setting-row">
+            <span class="setting-label">Max Resolution</span>
+            <span class="setting-value">4K (2160p)</span>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Supported Formats</span>
+            <span class="setting-value">MP4, MKV, WebM</span>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <h3>🌐 Supported Platforms</h3>
+          <div class="setting-row">
+            <span class="setting-label">Music Services</span>
+            <span class="setting-value">Spotify, SoundCloud, YouTube Music</span>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Video Platforms</span>
+            <span class="setting-value">YouTube, TikTok, Instagram, Twitter</span>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Total Supported</span>
+            <span class="setting-value">1000+ Sites</span>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <h3>📁 Storage</h3>
+          <div class="setting-row">
+            <span class="setting-label">Download Location</span>
+            <span class="setting-value" id="info-path">~/Downloads</span>
+          </div>
+        </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal" id="profileModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>👤 Account Settings</h2>
+      <button class="modal-close" onclick="closeProfileModal()">✕</button>
+    </div>
+
+    <div class="avatar-upload">
+      <div class="avatar-preview" id="modal-avatar">👤</div>
+      <div>
+        <input type="file" id="avatar-file" accept="image/*" onchange="handleAvatarUpload(event)">
+        <button class="avatar-upload-btn" onclick="document.getElementById('avatar-file').click()">Change Avatar</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="profile-name" placeholder="Your name">
+    </div>
+
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="profile-username" placeholder="Username" maxlength="24">
+    </div>
+
+    <div class="form-group">
+      <label>Bio</label>
+      <textarea id="profile-bio" placeholder="Tell us about yourself" maxlength="160" rows="3"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Account Status</label>
+      <div style="padding:8px;background:var(--s3);border-radius:8px;font-size:12px">
+        <div style="margin-bottom:4px">📧 <strong id="account-email">No account</strong></div>
+        <div>📅 <strong id="account-joined">-</strong></div>
+      </div>
+    </div>
+
+    <div class="modal-buttons">
+      <button class="btn-save" onclick="saveProfile()">💾 Save</button>
+      <button class="btn-cancel" onclick="closeProfileModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -266,14 +401,34 @@ body::before{
 </div>
 
 <script>
-/* Global state */
 let _dd = {mode:'Video', quality:'Best (Max Quality)', format:'mp4'};
-let _busy = false;
-let _es = null;
-let _currentJob = null;
+let _busy = false, _es = null, _currentJob = null;
+let _user = {name:'Guest', email:'default', username:'', bio:'', avatar:'', joined:''};
 const DPATH = navigator.platform.includes('Win') ? '%USERPROFILE%\\Downloads' : '~/Downloads';
 
-/* Page Navigation */
+/* Music detection */
+const MUSIC_PLATFORMS = ['spotify.com', 'spotify:', 'soundcloud.com', 'youtube.com/watch', 'youtu.be', 'applemusic', 'music.apple.com', 'bandcamp.com', 'tidal.com', 'deezer.com'];
+
+function isMusicLink(url) {
+  return MUSIC_PLATFORMS.some(p => url.toLowerCase().includes(p));
+}
+
+function detectURL(url) {
+  const isMp = isMusicLink(url);
+  const sp = url && (url.includes('spotify.com') || url.startsWith('spotify:'));
+  
+  document.getElementById('detect-badge').className = 'url-badge' + (isMp ? ' show' : '');
+  document.getElementById('volume-badge').className = 'url-badge' + (isMp ? ' show' : '');
+  
+  if(isMp && _dd.format === 'mp4') pickDD('format', 'mp3');
+  if(isMp) pickDD('mode', 'Audio');
+}
+
+function clearInput() {
+  document.getElementById('url-inp').value = '';
+  detectURL('');
+}
+
 function showPage(p) {
   document.querySelectorAll('.page').forEach(el => el.classList.remove('on'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('on'));
@@ -283,21 +438,11 @@ function showPage(p) {
   if(p === 'settings') loadInfo();
 }
 
-/* URL Detection */
-function detectURL(url) {
-  const sp = url && (url.includes('spotify.com') || url.startsWith('spotify:'));
-  const badge = document.getElementById('spotify-badge');
-  badge.className = 'url-badge' + (sp ? ' show' : '');
-  if(sp && _dd.format === 'mp4') pickDD('format', 'mp3');
-}
-
-/* Dropdown handler */
 function pickDD(k, v) {
   _dd[k] = v;
   document.getElementById(k + '-sel').value = v;
 }
 
-/* Paste from clipboard */
 async function doPaste() {
   try {
     const text = await navigator.clipboard.readText();
@@ -308,7 +453,6 @@ async function doPaste() {
   }
 }
 
-/* Start download */
 async function go() {
   const url = document.getElementById('url-inp').value.trim();
   if(!url) { toast('Please paste a URL', 'err'); return; }
@@ -316,7 +460,7 @@ async function go() {
 
   _busy = true;
   document.getElementById('dl-btn').disabled = true;
-  document.getElementById('cancel-btn').disabled = false;
+  document.getElementById('cancel-btn').style.display = 'block';
   document.getElementById('console').innerHTML = '';
   
   try {
@@ -324,12 +468,8 @@ async function go() {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        url: url,
-        mode: _dd.mode,
-        quality: _dd.quality,
-        format: _dd.format,
-        path: DPATH,
-        user: 'default'
+        url, mode: _dd.mode, quality: _dd.quality, format: _dd.format,
+        path: DPATH, user: _user.email
       })
     });
     
@@ -345,13 +485,12 @@ async function go() {
     _currentJob = data.job_id;
     streamProgress(data.job_id);
   } catch(e) {
-    toast('Network error: ' + e.message, 'err');
+    toast('Network error', 'err');
     _busy = false;
     document.getElementById('dl-btn').disabled = false;
   }
 }
 
-/* Stream progress */
 function streamProgress(jid) {
   if(_es) _es.close();
   _es = new EventSource('/api/progress/' + jid);
@@ -374,52 +513,41 @@ function streamProgress(jid) {
     });
     
     if(p.done) {
-      _es.close();
-      _es = null;
-      _busy = false;
+      _es.close(); _es = null; _busy = false;
       document.getElementById('dl-btn').disabled = false;
+      document.getElementById('cancel-btn').style.display = 'none';
       document.getElementById('dl-btn').classList.add('success');
       document.getElementById('dl-btn').innerHTML = '✅ Done!';
-      document.getElementById('now-status').textContent = 'Saved ✓';
       toast('Download complete! ✓','ok');
       setTimeout(() => {
         document.getElementById('dl-btn').classList.remove('success');
         document.getElementById('dl-btn').innerHTML = '⬇ Download Now';
         document.getElementById('console').innerHTML = '';
         document.getElementById('prog-fill').style.width = '0%';
-        document.getElementById('now-status').textContent = 'Ready to download';
       }, 2000);
     }
   };
   
   _es.onerror = function() {
-    _es.close();
-    _es = null;
-    _busy = false;
+    _es.close(); _es = null; _busy = false;
     document.getElementById('dl-btn').disabled = false;
     toast('Connection lost', 'err');
   };
 }
 
-/* Cancel download */
 function cancelDl() {
-  if(_es) {
-    _es.close();
-    _es = null;
-  }
+  if(_es) { _es.close(); _es = null; }
   _busy = false;
   document.getElementById('dl-btn').disabled = false;
-  document.getElementById('cancel-btn').disabled = true;
+  document.getElementById('cancel-btn').style.display = 'none';
   document.getElementById('console').innerHTML = '';
   document.getElementById('prog-fill').style.width = '0%';
-  document.getElementById('now-status').textContent = 'Download cancelled';
   toast('Download cancelled', 'ok');
 }
 
-/* Load history */
 async function loadHistory() {
   try {
-    const r = await fetch('/api/history?user=default');
+    const r = await fetch('/api/history?user=' + _user.email);
     const items = await r.json();
     const c = document.getElementById('hist-container');
     c.innerHTML = '';
@@ -440,11 +568,10 @@ async function loadHistory() {
     
     if(items.length === 0) c.innerHTML = '<div style="color:var(--fg3);font-size:13px">No downloads yet</div>';
   } catch(e) {
-    document.getElementById('hist-container').innerHTML = '<div style="color:var(--red);font-size:13px">Error loading history</div>';
+    document.getElementById('hist-container').innerHTML = '<div style="color:var(--red)">Error loading history</div>';
   }
 }
 
-/* Load system info */
 async function loadInfo() {
   try {
     const r = await fetch('/api/info');
@@ -452,12 +579,61 @@ async function loadInfo() {
     document.getElementById('info-ytdlp').textContent = info.ytdlp || 'Unknown';
     document.getElementById('info-ffmpeg').textContent = info.ffmpeg ? '✓ Present' : '✗ Missing';
     document.getElementById('info-net').textContent = info.network || 'Unknown';
+    document.getElementById('info-path').textContent = DPATH;
   } catch(e) {
-    document.getElementById('info-ytdlp').textContent = 'Error';
+    console.log('Error loading info');
   }
 }
 
-/* Update yt-dlp */
+function openProfileModal() {
+  document.getElementById('profileModal').classList.add('show');
+  document.getElementById('profile-name').value = _user.name;
+  document.getElementById('profile-username').value = _user.username;
+  document.getElementById('profile-bio').value = _user.bio;
+  document.getElementById('account-email').textContent = _user.email;
+  document.getElementById('account-joined').textContent = _user.joined || 'Just now';
+}
+
+function closeProfileModal() {
+  document.getElementById('profileModal').classList.remove('show');
+}
+
+function handleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    _user.avatar = e.target.result;
+    updateAvatarDisplay();
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateAvatarDisplay() {
+  const avatar = _user.avatar || '👤';
+  if(avatar.startsWith('data:')) {
+    document.getElementById('topbar-avatar').innerHTML = `<img src="${avatar}">`;
+    document.getElementById('modal-avatar').innerHTML = `<img src="${avatar}">`;
+  } else {
+    document.getElementById('topbar-avatar').innerHTML = avatar;
+    document.getElementById('modal-avatar').innerHTML = avatar;
+  }
+}
+
+async function saveProfile() {
+  _user.name = document.getElementById('profile-name').value || 'Guest';
+  _user.username = document.getElementById('profile-username').value;
+  _user.bio = document.getElementById('profile-bio').value;
+  
+  localStorage.setItem('idlr_user', JSON.stringify(_user));
+  document.getElementById('topbar-name').textContent = _user.name.split(' ')[0];
+  updateAvatarDisplay();
+  
+  toast('Profile saved! ✓', 'ok');
+  setTimeout(() => closeProfileModal(), 500);
+}
+
 async function updateYtdlp() {
   try {
     const btn = event.target;
@@ -472,13 +648,12 @@ async function updateYtdlp() {
     btn.innerHTML = '🔄 Update yt-dlp';
     if(data.ok) loadInfo();
   } catch(e) {
-    toast('Update failed: ' + e.message, 'err');
+    toast('Update failed', 'err');
     event.target.disabled = false;
     event.target.innerHTML = '🔄 Update yt-dlp';
   }
 }
 
-/* Toast notifications */
 function toast(msg, type = 'ok') {
   const el = document.createElement('div');
   el.className = 'toast ' + type;
@@ -491,6 +666,19 @@ function toast(msg, type = 'ok') {
 }
 
 /* Init */
+window.addEventListener('click', (e) => {
+  const modal = document.getElementById('profileModal');
+  if(e.target === modal) closeProfileModal();
+});
+
+// Load user from localStorage
+const saved = localStorage.getItem('idlr_user');
+if(saved) {
+  _user = JSON.parse(saved);
+  updateAvatarDisplay();
+}
+document.getElementById('topbar-name').textContent = _user.name.split(' ')[0];
+
 loadInfo();
 </script>
 </body>
