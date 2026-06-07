@@ -35,13 +35,14 @@ Everything stays on your machine.
 ## Quick start
 
 1. Install [Python 3.10+](https://www.python.org/downloads/) — tick **Add Python to PATH**
-2. Open a terminal in this folder and run:
+2. **Double-click `app.py`** in File Explorer (the Python file)
+3. Your browser opens → **http://localhost:5000**
 
-```bash
-python app.py
-```
+That's it. No terminal, no commands.
 
-3. Browser opens → **http://localhost:5000**
+**To stop:** open Task Manager → end **Python** / **pythonw**
+
+> First time only: Windows may ask how to open `.py` files — choose **Python**.
 
 ---
 
@@ -88,7 +89,7 @@ Saved locally in your browser — no account needed.
 ## Project files
 
 ```
-├── app.py            # Run this — Flask server
+├── app.py            # Double-click this to start
 ├── index.html        # Web UI
 ├── requirements.txt  # Dependencies
 └── README.md
@@ -108,14 +109,4 @@ Saved locally in your browser — no account needed.
 
 ---
 
-## Disclaimer
-
-For **personal use only**. Respect copyright and each site's terms of service.
-
----
-
-<div align="center">
-
-**IDLR — Internet Downloader** · MIT License · © 2026
-
-</div>
+#
