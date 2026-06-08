@@ -109,4 +109,14 @@ Saved locally in your browser — no account needed.
 
 ---
 
-#
+## Disclaimer
+
+For **personal use only**. Respect copyright and each site's terms of service.
+
+---
+
+<div align="center">
+
+**IDLR — Internet Downloader** · MIT License · © 2026
+
+</div>
