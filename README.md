@@ -1,122 +1,154 @@
-<div align="center">
-
-<img src="favicon.svg" width="100" alt="IDLR logo">
-
 # IDLR — Internet Downloader
 
-### Paste a link. Download. Done.
+A self-hosted media downloader with a clean web interface. Paste a link, IDLR detects the platform automatically, and grabs the video or audio you want — no ads, no redirects, no third-party upload wait times.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue?style=flat-square&logo=python&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-Web%20Server-black?style=flat-square&logo=flask)
-![yt-dlp](https://img.shields.io/badge/yt--dlp-Video-red?style=flat-square)
-![SpotDL](https://img.shields.io/badge/SpotDL-Spotify-1ed760?style=flat-square&logo=spotify&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)
-
-**YouTube · Spotify · TikTok · Instagram · SoundCloud · 1000+ sites**
-
-No login. No cloud. Runs on your PC.
-
-</div>
+![IDLR banner](docs/screenshots/banner.png)
 
 ---
 
-## What it does
+## ✨ Features
 
-1. Run the app on your computer  
-2. Paste any video or music link  
-3. Click **Download Now**  
-4. File saves to your **Downloads** folder  
-5. Shows up in the **History** tab  
+- **1000+ supported sites** via `yt-dlp`, plus dedicated audio handling for Spotify tracks/playlists via `spotdl`
+- **Live URL detection** — paste a link and the UI instantly recognizes the platform and shows the right options, no need to press "check" first
+- **Animated dropdowns** for format/quality selection
+- **Slide-in settings panel** — download location, default quality, audio-only mode, and more, without leaving the page
+- **Thumbnail preview** — see the video thumbnail (including HLS streams) before you commit to downloading
+- **Bulk history management** — every past download is logged, searchable, and can be bulk-selected for re-download or deletion
+- **Runs entirely on your own machine** — nothing leaves your network except the request to the source site
 
-Everything stays on your machine.
+### Supported platforms
 
----
-
-## Quick start
-
-1. Install [Python 3.10+](https://www.python.org/downloads/) — tick **Add Python to PATH**
-2. **Double-click `app.py`** in File Explorer (the Python file)
-3. Your browser opens → **http://localhost:5000**
-
-That's it. No terminal, no commands.
-
-**To stop:** open Task Manager → end **Python** / **pythonw**
-
-> First time only: Windows may ask how to open `.py` files — choose **Python**.
+| Platform | Video | Audio |
+|---|---|---|
+| YouTube | ✅ | ✅ |
+| Spotify | — | ✅ (via spotdl) |
+| SoundCloud | — | ✅ |
+| TikTok | ✅ | ✅ |
+| 1000+ others (via yt-dlp) | ✅ | ✅ |
 
 ---
 
-## What gets installed
+## 📸 Screenshots
 
-| Package | Purpose |
-|:--------|:--------|
-| **Flask** | Runs the web app on your PC |
-| **yt-dlp** | Downloads YouTube, TikTok, Instagram, etc. |
-| **SpotDL** | Downloads Spotify as MP3 |
-| **FFmpeg** *(auto)* | Audio/video conversion — needed for sound |
+> Replace these with real captures from your instance — drop images into `docs/screenshots/` and update the paths below.
 
----
-
-## Spotify (music)
-
-Paste any Spotify link:
-
-- Track, album, or playlist  
-- Auto-switches to **Audio Only**  
-- Saves as **MP3** (320 kbps) to Downloads  
+| Home / URL detection | Settings panel | Download history |
+|---|---|---|
+| ![home](docs/screenshots/home.png) | ![settings](docs/screenshots/settings.png) | ![history](docs/screenshots/history.png) |
 
 ---
 
-## History tab
+## 🧰 Prerequisites
 
-Every download is saved automatically. Open **History** to:
-
-- See past downloads  
-- Re-download a link  
-- Delete items or clear all  
-
-History is stored in `~/.idlr_app/history.json` on your PC.
+- Python 3.10+
+- `pip`
+- `ffmpeg` installed and on your system `PATH` (required for audio extraction/merging)
+- A modern browser (Chrome, Firefox, Edge)
 
 ---
 
-## Profile (optional)
+## 🚀 Setup
 
-Click your name (top right) to set a display name or avatar.  
-Saved locally in your browser — no account needed.
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/<your-username>/idlr.git
+   cd idlr
+   ```
+
+2. **Create a virtual environment (recommended)**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate      # macOS/Linux
+   venv\Scripts\activate         # Windows
+   ```
+
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+   This installs Flask, `yt-dlp`, `spotdl`, and any other packages the app needs.
+
+4. **Install ffmpeg** (if not already installed)
+   ```bash
+   # macOS
+   brew install ffmpeg
+
+   # Ubuntu/Debian
+   sudo apt install ffmpeg
+
+   # Windows
+   winget install ffmpeg
+   ```
+
+5. **Run the app**
+   ```bash
+   python app.py
+   ```
+
+6. **Open it in your browser**
+   ```
+   http://localhost:5000
+   ```
 
 ---
 
-## Project files
+## ⚙️ Configuration
+
+Settings can be changed either from the in-app **Settings panel** or by editing the config file directly.
+
+| Setting | Default | Description |
+|---|---|---|
+| Download folder | `./downloads` | Where finished files are saved |
+| Default quality | `Best available` | Fallback quality if none is chosen per-download |
+| Audio-only mode | `Off` | Strips video, saves audio only (mp3/m4a) |
+| History limit | `Unlimited` | Max entries kept before auto-pruning |
+
+> If your app reads these from a `.env` or `config.json` file, list the exact keys here so the README matches reality.
+
+---
+
+## 🖥️ Usage
+
+1. Paste a URL into the input field — the platform badge appears automatically.
+2. Pick a format/quality from the dropdown.
+3. Hit **Download**.
+4. Track progress and grab the finished file from the **History** panel.
+5. Use the settings toggle (top corner) to adjust download location, quality defaults, or clear history in bulk.
+
+---
+
+## 🗂️ Project structure
 
 ```
-├── app.py            # Double-click this to start
-├── index.html        # Web UI
-├── requirements.txt  # Dependencies
+idlr/
+├── app.py                 # Flask entry point
+├── static/
+│   ├── css/
+│   ├── js/
+│   └── img/
+├── templates/
+│   └── index.html
+├── downloads/              # Saved media (gitignored)
+├── requirements.txt
 └── README.md
 ```
 
----
-
-## Troubleshooting
-
-| Problem | Fix |
-|:--------|:----|
-| `python not recognized` | Reinstall Python with **Add to PATH** |
-| App won't open | Keep the terminal window open while using IDLR |
-| No sound in video | Run `pip install static-ffmpeg` |
-| Spotify fails | Settings → **Update yt-dlp + spotdl** |
-| YouTube error | Same — update yt-dlp in Settings |
+> Update this tree to match your actual folder layout.
 
 ---
 
-## Disclaimer
+## 🐛 Known issues / troubleshooting
 
-For **personal use only**. Respect copyright and each site's terms of service.
+- **Thumbnails not loading for some links** — a handful of platforms serve thumbnails over HLS streams that aren't always parsed correctly; a fallback/manual-refresh option is in progress.
+- **ffmpeg not found** — make sure it's installed and available on your PATH; restart your terminal after installing.
+- **Spotify downloads slow or fail** — spotdl relies on matching tracks via YouTube; very obscure tracks may not find a match.
 
 ---
 
-<div align="center">
+## 🤝 Contributing
 
-**IDLR — Internet Downloader** · MIT License · © 2026
+This is a personal/self-hosted project, but pull requests and issue reports are welcome if you're running your own instance and find a bug.
 
-</div>
+## 📄 License
+
+Add your license of choice here (MIT is a common default for personal projects like this).
